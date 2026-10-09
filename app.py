@@ -11,7 +11,10 @@ load_dotenv()
 app = Flask(__name__)
 client = Groq()
 
-DB_FILE = 'pawnshop.db'
+if os.environ.get("VERCEL"):
+    DB_FILE = '/tmp/pawnshop.db'
+else:
+    DB_FILE = 'pawnshop.db'
 
 def get_db():
     conn = sqlite3.connect(DB_FILE)
