@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1280, user-scalable=yes">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0F172A">
+    <title>AI Dealer's Life</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: #1e293b;
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --accent-color: #eab308;
+            --accent-hover: #ca8a04;
+            --text-color: #f8fafc;
+            --muted-text: #94a3b8;
+            --success-color: #22c55e;
+            --danger-color: #ef4444;
+            --buy-color: #3b82f6;
+            --sell-color: #eab308;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0b0f19 70%);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            min-width: 750px;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid var(--panel-border);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 90vh;
+        }
+
+        header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: var(--accent-color);
+            text-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+            letter-spacing: 1px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+            align-items: center;
+        }
+
+        .stat-box {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-box.money {
+            color: var(--success-color);
+        }
+
+        .manage-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            margin-right: 15px;
+            font-size: 0.95rem;
+        }
+        
+        .manage-btn:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* --- Left Column: Customer --- */
+        .customer-area {
+            flex: 1.3;
+            padding: 15px;
+            border-right: 1px solid var(--panel-border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .role-badge {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .role-sell {
+            background: rgba(234, 179, 8, 0.2);
+            color: var(--sell-color);
+            border: 1px solid var(--sell-color);
+        }
+
+        .role-buy {
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--buy-color);
+            border: 1px solid var(--buy-color);
+        }
+
+        .avatar-container {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid var(--panel-border);
+            margin-bottom: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, border-color 0.3s;
+            flex-shrink: 0;
+        }
+
+        .customer-area:hover .avatar-container {
+            transform: scale(1.05);
+        }
+
+        .avatar-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .item-card {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            overflow: hidden;
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .item-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .item-media-wrapper {
+            height: 120px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1E293B;
+            transition: height 0.3s ease;
+        }
+
+        @media screen and (min-width: 951px) {
+            .item-media-wrapper {
+                height: 250px;
+            }
+        }
+
+        .item-details {
+            padding: 15px;
+        }
+
+        .item-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--text-color);
+            margin-bottom: 5px;
+        }
+        
+        .item-value {
+            color: var(--muted-text);
+            font-size: 0.9rem;
+        }
+
+        .result-panel {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 15px;
+            width: 100%;
+            text-align: center;
+            display: none;
+            margin-top: auto;
+            margin-bottom: auto;
+            animation: fadeIn 0.4s ease;
+            flex-shrink: 0;
+        }
+
+        .result-panel h3 {
+            margin-top: 0;
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+        }
+
+        .result-panel p {
+            font-size: 0.95rem;
+            color: var(--muted-text);
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        /* --- Middle Column: Chat --- */
+        .chat-area {
+            flex: 1.7;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.2);
+            border-right: 1px solid var(--panel-border);
+        }
+
+        .messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 15px 20px;
+            border-radius: 16px;
+            line-height: 1.5;
+            font-size: 1.05rem;
+            animation: fadeIn 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .msg-ai {
+            background: #334155;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .msg-user {
+            background: #1d4ed8;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .msg-system {
+            background: transparent;
+            color: var(--muted-text);
+            text-align: center;
+            align-self: center;
+            font-size: 0.9rem;
+            font-style: italic;
+            box-shadow: none;
+        }
+        
+        .input-area button {
+            padding: 12px 20px;
+            font-size: 1.5rem;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .input-area {
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid var(--panel-border);
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.2);
+        }
+
+        button {
+            padding: 15px 30px;
+            background: var(--accent-color);
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(234, 179, 8, 0.4);
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background: #475569;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .danger-btn {
+            background: var(--danger-color);
+        }
+
+        .danger-btn:hover:not(:disabled) {
+            background: #dc2626;
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .appraise-btn {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        .appraise-btn:hover:not(:disabled) {
+            background: #7c3aed;
+            box-shadow: 0 5px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        /* --- Right Column: Inventory --- */
+        .inventory-area {
+            flex: 1;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0,0,0,0.15);
+        }
+        
+        .inventory-area h3 {
+            margin-top: 0;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 15px;
+        }
+
+        .inventory-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .inventory-item {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .inventory-item img {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-right: 15px;
+        }
+
+        .inv-details .inv-name {
+            font-weight: bold;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+        }
+
+        .inv-details .inv-price {
+            font-size: 0.85rem;
+            color: var(--muted-text);
+        }
+
+        .loader {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+        /* --- Modals --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+            background-color: var(--panel-bg);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+        }
+
+        .modal h2 { margin-top: 0; margin-bottom: 20px; color: white; }
+        
+        .modal-body {
+            text-align: left;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .staff-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        /* --- Desktop Resize Graceful Degradation --- */
+        @media screen and (max-width: 950px) {
+            .hide-text {
+                display: none;
+            }
+            header h1 {
+                font-size: 1.2rem;
+            }
+            .manage-btn, .stat-box {
+                padding: 10px;
+                font-size: 1.2rem;
+            }
+            .stat-box.money {
+                font-size: 1rem;
+            }
+            .input-area button {
+                font-size: 1.2rem;
+                padding: 10px 5px;
+            }
+            #next-customer-btn, .result-panel button {
+                font-size: 1.2rem;
+            }
+        }
+
+        /* --- Landscape Enforcement Overlay --- */
+        #landscape-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-color);
+            z-index: 9999;
+            color: white;
+            text-align: center;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        #landscape-overlay h2 {
+            font-size: 2.5rem;
+            margin: 10px 0;
+            color: var(--accent-color);
+        }
+        #landscape-overlay p {
+            font-size: 1.5rem;
+            color: var(--muted-text);
+        }
+
+        @media screen and (orientation: portrait) {
+            #landscape-overlay {
+                display: flex !important;
+            }
+            .container, .modal-overlay, #manager-overlay {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Landscape Enforcement Overlay -->
+    <div id="landscape-overlay">
+        <div style="font-size: 6rem; margin-bottom: 20px; animation: tilt 2s infinite ease-in-out;"><i class="fas fa-mobile-alt"></i></div>
+        <h2>กรุณาหมุนจอเป็นแนวนอน</h2>
+        <p>เกมนี้ออกแบบมาเพื่อเล่นในแนวนอนเท่านั้นครับ</p>
+        <style>
+            @keyframes tilt {
+                0% { transform: rotate(0deg); }
+                50% { transform: rotate(-90deg); }
+                100% { transform: rotate(0deg); }
+            }
+        </style>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-gem" style="color:var(--accent-color);"></i> <span class="hide-text">AI Dealer's Shop</span></h1>
+            <div class="stats">
+                <button id="install-pwa-btn" style="display: none; padding: 10px; background: var(--success-color); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.2rem; margin-right: 10px;"><i class="fas fa-download"></i> <span class="hide-text">โหลดเป็นแอป</span></button>
+                <button class="manage-btn" onclick="openManager()"><i class="fas fa-building"></i> <span class="hide-text">จัดการร้าน</span></button>
+                <div class="stat-box" title="วันที่"><i class="fas fa-calendar-alt"></i> <span class="hide-text">วันที่: </span><span id="day-counter">1</span></div>
+                <div class="stat-box" title="ลูกค้าที่รอคิว"><i class="fas fa-users"></i> <span class="hide-text">คิว: </span><span id="queue-counter">5</span></div>
+                <div class="stat-box" title="ชื่อเสียงร้าน"><i class="fas fa-star" style="color:#EAB308;"></i> <span class="hide-text">ชื่อเสียง: </span><span id="rep-counter">10</span></div>
+                <div class="stat-box money" title="เงินทุน"><i class="fas fa-money-bill-wave" style="color:var(--success-color);"></i> <span class="hide-text">฿</span><span id="player-money">100,000</span></div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Left: Customer Info & Results -->
+            <div class="customer-area">
+                <div id="role-badge" class="role-badge" style="margin-bottom: 10px; padding: 4px 10px; font-size: 0.85rem;">สถานะ</div>
+                
+                <div class="avatar-container" id="avatar-container" style="display: none;">
+                    <img id="customer-avatar" src="" alt="Customer">
+                </div>
+                
+                <div class="item-card" id="item-card" style="display: none; width: 100%; margin-bottom: auto; cursor: pointer; position: relative;" onclick="toggleItemDetails()">
+                    <div id="item-media-wrapper" class="item-media-wrapper">
+                        <img id="item-image" src="" alt="Item" class="item-image" style="display: none;">
+                        <i id="item-icon" class="" style="display: none; font-size: 60px; color: #EAB308;"></i>
+                    </div>
+                    
+                    <div id="item-details-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); flex-direction: column; justify-content: center; align-items: center; padding: 15px; text-align: center;">
+                        <div id="item-action-text" style="font-size: 0.9rem; color: var(--accent-color); margin-bottom: 5px;">กำลังเสนอขาย</div>
+                        <div class="item-name" id="item-name" style="font-size: 1.1rem; margin-bottom: 5px; color: white; font-weight: bold;">-</div>
+                        <div class="item-value" id="item-value" style="font-size: 0.95rem; color: #cbd5e1;">-</div>
+                    </div>
+                    
+                    <div style="padding: 10px; font-size: 0.85rem; color: var(--muted-text); border-top: 1px solid rgba(255,255,255,0.1);">
+                        <i class="fas fa-hand-pointer"></i> กดที่ภาพเพื่อดูข้อมูล
+                    </div>
+                </div>
+
+                <div class="result-panel" id="result-panel">
+                    <h3 id="result-title">ผลลัพธ์</h3>
+                    <p id="result-desc">-</p>
+                    <button onclick="nextCustomer()" style="width: 100%; font-size: 1rem; padding: 10px; white-space: nowrap;"><i class="fas fa-forward"></i> <span class="hide-text">คนต่อไป</span></button>
+                </div>
+
+                <button id="next-customer-btn" onclick="nextCustomer()" style="width: 100%; margin-top: auto; font-size: 1rem; padding: 10px; white-space: nowrap;"><i class="fas fa-store"></i> <span class="hide-text">เปิดร้าน</span></button>
+            </div>
+
+            <!-- Middle: Chat Box -->
+            <div class="chat-area">
+                <div class="messages" id="chat-box">
+                    <div class="message msg-system">ร้านเปิดแล้ว! กด "เปิดร้านรับลูกค้า" ทางซ้ายมือเพื่อเริ่มเกม</div>
+                </div>
+                
+                <div class="input-area">
+                    <input type="text" id="user-input" placeholder="พิมพ์ข้อความเจรจาต่อรอง หรือเสนอราคาที่นี่..." disabled onkeypress="handleEnter(event)">
+                    <button id="send-btn" onclick="sendMessage()" disabled title="ส่งข้อความ"><i class="fas fa-paper-plane"></i></button>
+                    <button id="appraise-btn" onclick="appraiseItem()" class="appraise-btn" disabled style="display:none;" title="ตรวจสอบ (฿500)"><i class="fas fa-search-dollar"></i></button>
+                    <button id="reject-btn" onclick="rejectCustomer()" class="danger-btn" disabled title="ปฏิเสธ"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- Right: Inventory -->
+            <div class="inventory-area">
+                <h3><i class="fas fa-box-open"></i> <span class="hide-text">คลังสินค้าของร้าน</span></h3>
+                <div class="inventory-list" id="inventory-list">
+                    <div style="text-align: center; color: var(--muted-text); margin-top: 20px; font-style: italic;" id="empty-inv">
+                        ยังไม่มีสินค้าในคลัง
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert/Confirm Modal -->
+    <div class="modal-overlay" id="custom-modal-overlay" style="z-index: 99999;">
+        <div class="modal" style="max-width: 400px; text-align: center;">
+            <h2 id="custom-modal-title">แจ้งเตือน</h2>
+            <div class="modal-body" id="custom-modal-body" style="text-align: center; white-space: pre-line;"></div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button id="custom-modal-cancel" style="flex: 1; padding: 10px; border-radius: 8px; background: var(--danger-color); color: white; border: none; cursor: pointer; font-size: 1rem;">ยกเลิก</button>
+                <button id="custom-modal-ok" style="flex: 1; padding: 10px; border-radius: 8px; background: var(--buy-color); color: white; border: none; cursor: pointer; font-size: 1rem;">ตกลง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- End of Day Modal -->
+    <div class="modal-overlay" id="eod-overlay">
+        <div class="modal">
+            <h2><i class="fas fa-calendar-check"></i> สรุปยอดประจำวันที่ <span id="eod-day"></span></h2>
+            <div class="modal-body">
+                <p><i class="fas fa-home" style="color:var(--danger-color)"></i> ค่าเช่าร้าน: <span id="eod-rent" style="color:var(--danger-color)"></span></p>
+                <p><i class="fas fa-hard-hat" style="color:var(--danger-color)"></i> ค่าจ้างพนักงาน: <span id="eod-wages" style="color:var(--danger-color)"></span></p>
+                <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
+                <h4><i class="fas fa-newspaper"></i> เหตุการณ์ประจำวัน:</h4>
+                <div id="eod-event" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:5px; margin-top:10px;"></div>
+                <div id="eod-logs" style="margin-top:10px; font-size: 0.9rem; color:var(--success-color);"></div>
+            </div>
+            <button onclick="closeEod()" style="width:100%; padding:10px; border-radius:8px; background:var(--primary-color); color:white; border:none; cursor:pointer;"><i class="fas fa-sun"></i> เริ่มเช้าวันใหม่</button>
+        </div>
+    </div>
+
+    <!-- Manager Modal -->
+    <div class="modal-overlay" id="manager-overlay">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0;"><i class="fas fa-users-cog"></i> จัดการร้านและพนักงาน</h2>
+                <button onclick="document.getElementById('manager-overlay').style.display='none'" style="background:transparent; color:var(--muted-text); border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="staff-item">
+                    <div>
+                        <b><i class="fas fa-shield-alt"></i> ยามเฝ้าร้าน <span id="star-guard" style="color:var(--accent-color)"></span></b><br>
+                        <small style="color:var(--muted-text)">กันโจรปล้น / เก็บส่วย (ค่าจ้างตามระดับ)</small>
+                    </div>
+                    <button id="btn-upgrade-guard" onclick="upgradeStaff('guard')" style="padding:5px 10px; cursor:pointer; background:var(--buy-color); color:white; border:none; border-radius:4px;">อัปเกรด</button>
+                </div>
+                <div class="staff-item">
+                    <div>
+                        <b><i class="fas fa-tools"></i> ช่างซ่อม <span id="star-repair" style="color:var(--accent-color)"></span></b><br>
+                        <small style="color:var(--muted-text)">สุ่มซ่อมของพังให้กลับมามีราคาตอนจบวัน</small>
+                    </div>
+                    <button id="btn-upgrade-repair" onclick="upgradeStaff('repair')" style="padding:5px 10px; cursor:pointer; background:var(--buy-color); color:white; border:none; border-radius:4px;">อัปเกรด</button>
+                </div>
+                <div class="staff-item">
+                    <div>
+                        <b><i class="fas fa-mask"></i> นักปลอมแปลง <span id="star-forger" style="color:var(--accent-color)"></span></b><br>
+                        <small style="color:var(--muted-text)">หลอกให้ลูกค้าซื้อของปลอมในราคาของจริง!</small>
+                    </div>
+                    <button id="btn-upgrade-forger" onclick="upgradeStaff('forger')" style="padding:5px 10px; cursor:pointer; background:var(--buy-color); color:white; border:none; border-radius:4px;">อัปเกรด</button>
+                </div>
+                <div class="staff-item">
+                    <div>
+                        <b><i class="fas fa-bullhorn"></i> นักโฆษณา <span id="star-ad" style="color:var(--accent-color)"></span></b><br>
+                        <small style="color:var(--muted-text)">เพิ่มชื่อเสียงทุกวัน และดึงลูกค้ามาต่อคิวเยอะขึ้น</small>
+                    </div>
+                    <button id="btn-upgrade-ad" onclick="upgradeStaff('ad')" style="padding:5px 10px; cursor:pointer; background:var(--buy-color); color:white; border:none; border-radius:4px;">อัปเกรด</button>
+                </div>
+                <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
+                <p style="text-align:center; color:var(--muted-text)">⭐ อัปเกรดพนักงานได้สูงสุด 3 ดาว!</p>
+            </div>
+            <button onclick="document.getElementById('manager-overlay').style.display='none'" style="width:100%; padding:10px; border-radius:8px; background:rgba(255,255,255,0.1); color:white; border:none; cursor:pointer;">✖️ <span class="hide-text">ปิด</span></button>
+        </div>
+    </div>
+
+    <script>
+        let money = 100000;
+        let day = 1;
+        let isChatting = false;
+        let inventory = [];
+        let currentTransType = "sell";
+        let currentItemValue = 0;
+
+        const chatBox = document.getElementById('chat-box');
+        
+        function customConfirm(message, title="แจ้งเตือน") {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('custom-modal-overlay');
+                document.getElementById('custom-modal-title').innerText = title;
+                document.getElementById('custom-modal-body').innerText = message;
+                const btnCancel = document.getElementById('custom-modal-cancel');
+                const btnOk = document.getElementById('custom-modal-ok');
+                
+                btnCancel.style.display = 'block';
+                overlay.style.display = 'flex';
+                
+                btnOk.onclick = () => { overlay.style.display = 'none'; resolve(true); };
+                btnCancel.onclick = () => { overlay.style.display = 'none'; resolve(false); };
+            });
+        }
+        
+        function customAlert(message, title="แจ้งเตือน") {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('custom-modal-overlay');
+                document.getElementById('custom-modal-title').innerText = title;
+                document.getElementById('custom-modal-body').innerText = message;
+                const btnCancel = document.getElementById('custom-modal-cancel');
+                const btnOk = document.getElementById('custom-modal-ok');
+                
+                btnCancel.style.display = 'none';
+                overlay.style.display = 'flex';
+                
+                btnOk.onclick = () => { overlay.style.display = 'none'; resolve(true); };
+            });
+        }
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const nextCustomerBtn = document.getElementById('next-customer-btn');
+        const rejectBtn = document.getElementById('reject-btn');
+        const appraiseBtn = document.getElementById('appraise-btn');
+        const itemCard = document.getElementById('item-card');
+        const avatarContainer = document.getElementById('avatar-container');
+        const inventoryList = document.getElementById('inventory-list');
+        const emptyInvMsg = document.getElementById('empty-inv');
+
+        const roleBadge = document.getElementById('role-badge');
+        const resultPanel = document.getElementById('result-panel');
+
+        function toggleItemDetails() {
+            const overlay = document.getElementById('item-details-overlay');
+            if (overlay.style.display === 'none') {
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+
+        async function loadGame() {
+            try {
+                const res = await fetch('/api/load_game');
+                const data = await res.json();
+                money = data.money;
+                day = data.day;
+                inventory = data.inventory;
+                
+                document.getElementById('rep-counter').innerText = data.reputation;
+                document.getElementById('queue-counter').innerText = data.customers_left;
+                
+                // Update manager modal buttons
+                const costs_map = {
+                    "guard": [10000, 25000, 50000],
+                    "repair": [15000, 30000, 60000],
+                    "forger": [30000, 60000, 100000],
+                    "ad": [20000, 40000, 80000]
+                };
+                
+                ['guard', 'repair', 'forger', 'ad'].forEach(role => {
+                    const lvl = data.staff[role];
+                    const starEl = document.getElementById(`star-${role}`);
+                    const btnEl = document.getElementById(`btn-upgrade-${role}`);
+                    
+                    starEl.innerText = '⭐'.repeat(lvl);
+                    
+                    if (lvl >= 3) {
+                        btnEl.innerText = "MAX";
+                        btnEl.disabled = true;
+                        btnEl.style.background = "var(--success-color)";
+                    } else {
+                        btnEl.innerText = `Lv.${lvl+1} (฿${costs_map[role][lvl].toLocaleString()})`;
+                        btnEl.disabled = false;
+                        btnEl.style.background = "var(--buy-color)";
+                    }
+                });
+                
+                updateStats();
+                renderInventory();
+            } catch (e) {
+                console.error("Failed to load game data");
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('player-money').innerText = money.toLocaleString();
+            document.getElementById('day-counter').innerText = day;
+        }
+
+        function addMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = `message msg-${type}`;
+            div.innerHTML = text; // allow bolding system messages
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function handleEnter(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function setInputState(enabled) {
+            userInput.disabled = !enabled;
+            sendBtn.disabled = !enabled;
+            rejectBtn.disabled = !enabled;
+            
+            if (currentTransType === "sell") {
+                appraiseBtn.style.display = 'inline-block';
+                // Only enable if not already appraised, handled by appraise logic, but we can just tie it to enabled for now
+            } else {
+                appraiseBtn.style.display = 'none';
+            }
+            
+            if (enabled) userInput.focus();
+        }
+
+        async function nextCustomer() {
+            // Reset UI for next customer
+            nextCustomerBtn.style.display = 'none';
+            resultPanel.style.display = 'none';
+            itemCard.style.display = 'none';
+            avatarContainer.style.display = 'none';
+            roleBadge.style.display = 'none';
+            document.getElementById('item-details-overlay').style.display = 'none';
+            chatBox.innerHTML = '';
+
+            addMessage("กำลังมีลูกค้าเดินเข้ามาในร้าน...", 'system');
+
+            try {
+                const res = await fetch('/api/new_customer', { method: 'POST' });
+                const data = await res.json();
+                
+                chatBox.innerHTML = ''; // Clear loading msg
+                
+                if (data.status === 'end_of_day') {
+                    showEndOfDay();
+                    return;
+                }
+
+                if (data.status === 'ok') {
+                    currentTransType = data.type;
+                    currentItemValue = data.item.value;
+                    
+                    document.getElementById('customer-avatar').src = data.avatar;
+                    avatarContainer.style.display = 'block';
+                    
+                    if (data.item.image && data.item.image.startsWith('icon:')) {
+                        document.getElementById('item-image').style.display = 'none';
+                        const iconEl = document.getElementById('item-icon');
+                        iconEl.className = data.item.image.split(':')[1];
+                        iconEl.style.display = 'block';
+                    } else {
+                        document.getElementById('item-icon').style.display = 'none';
+                        const imgEl = document.getElementById('item-image');
+                        imgEl.src = data.item.image;
+                        imgEl.style.display = 'block';
+                    }
+                    
+                    document.getElementById('item-name').innerText = data.item.name;
+                    document.getElementById('item-value').innerText = `ราคากลาง: ฿${data.item.value.toLocaleString()}`;
+                    itemCard.style.display = 'block';
+                    roleBadge.style.display = 'inline-block';
+                    
+                    if (currentTransType === "buy") {
+                        roleBadge.innerText = "ลูกค้ามาขอซื้อของ";
+                        roleBadge.className = "role-badge role-buy";
+                        document.getElementById('item-action-text').innerText = "สนใจซื้อ:";
+                        document.getElementById('item-action-text').style.color = "var(--buy-color)";
+                    } else {
+                        roleBadge.innerText = "ลูกค้ามาเสนอขาย";
+                        roleBadge.className = "role-badge role-sell";
+                        document.getElementById('item-action-text').innerText = "เสนอขาย:";
+                        document.getElementById('item-action-text').style.color = "var(--sell-color)";
+                        appraiseBtn.disabled = false;
+                    }
+                    
+                    
+                    addMessage("ลูกค้าเดินเข้ามาที่เคาน์เตอร์", 'system');
+                    addMessage(data.message, 'ai');
+                    loadGame(); // refresh queue
+                    
+                    setInputState(true);
+                    isChatting = true;
+                } else {
+                    addMessage("Error: " + data.message, 'system');
+                    nextCustomerBtn.style.display = 'block';
+                }
+            } catch (e) {
+                chatBox.innerHTML = '';
+                addMessage("Connection error", 'system');
+                nextCustomerBtn.style.display = 'block';
+            }
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text || !isChatting) return;
+            
+            // Check for typos in numbers
+            const textRaw = text.replace(/,/g, '');
+            const numMatch = textRaw.match(/\d+/);
+            if (numMatch) {
+                const proposedPrice = parseInt(numMatch[0]);
+                if (proposedPrice < currentItemValue * 0.1 || proposedPrice > currentItemValue * 5) {
+                    const confirmMsg = `⚠️ ตัวเลขที่คุณพิมพ์ (${proposedPrice.toLocaleString()}) ค่อนข้างห่างจากราคากลางมาก\n\nคุณพิมพ์ 0 ตกหล่นหรือเกินไปหรือไม่?\nกด "ตกลง" เพื่อส่งข้อความต่อ หรือกด "ยกเลิก" เพื่อกลับไปแก้ไข`;
+                    const isSure = await customConfirm(confirmMsg, "ยืนยันราคา");
+                    if (!isSure) {
+                        userInput.focus();
+                        return;
+                    }
+                }
+            }
+
+            addMessage(text, 'user');
+            userInput.value = '';
+            setInputState(false);
+            
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message msg-ai';
+            typingDiv.innerHTML = '<div class="loader"></div>';
+            chatBox.appendChild(typingDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await res.json();
+                
+                chatBox.removeChild(typingDiv);
+
+                if (data.status === 'ok') {
+                    if (data.message) addMessage(data.message, 'ai');
+                    
+                    if (data.accepted) {
+                        endDeal(true, data.price, data.item, data.type);
+                    } else if (data.rejected) {
+                        endDeal(false);
+                    } else {
+                        setInputState(true);
+                    }
+                } else {
+                    addMessage("Error: " + data.message, 'system');
+                    setInputState(true);
+                }
+            } catch (e) {
+                if(chatBox.contains(typingDiv)) chatBox.removeChild(typingDiv);
+                addMessage("Connection error", 'system');
+                setInputState(true);
+            }
+        }
+
+        function endDeal(success, price = 0, item = null, type = "sell") {
+            isChatting = false;
+            setInputState(false);
+            
+            // Hide item card, show result panel
+            itemCard.style.display = 'none';
+            resultPanel.style.display = 'block';
+            
+            const title = document.getElementById('result-title');
+            const desc = document.getElementById('result-desc');
+            
+            if (success) {
+                if (type === "sell") {
+                    if (price > money) {
+                        title.innerHTML = "เงินไม่พอ! <i class='fas fa-money-bill-wave' style='color:var(--danger-color)'></i>";
+                        title.style.color = "var(--danger-color)";
+                        desc.innerText = `คุณมีเงินไม่พอจ่าย ฿${price.toLocaleString()}`;
+                        addMessage(`<b>[ระบบ] ดีลล่ม:</b> คุณมีเงินไม่พอจ่าย ฿${price.toLocaleString()}`, 'system');
+                    } else {
+                        title.innerHTML = "รับซื้อสำเร็จ! <i class='fas fa-handshake'></i>";
+                        title.style.color = "var(--success-color)";
+                        desc.innerText = `ซื้อเข้าคลังราคา ฿${price.toLocaleString()}`;
+                        addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณซื้อสินค้าในราคา ฿${price.toLocaleString()}`, 'system');
+                        loadGame(); // Reload state from DB
+                    }
+                } else if (type === "buy") {
+                    title.innerHTML = "ขายออกแล้ว! <i class='fas fa-coins'></i>";
+                    title.style.color = "var(--success-color)";
+                    
+                    let profit = price - item.bought_price;
+                    let profitText = profit >= 0 ? `กำไร +฿${profit.toLocaleString()}` : `ขาดทุน ฿${Math.abs(profit).toLocaleString()}`;
+                    
+                    desc.innerHTML = `ขายได้ ฿${price.toLocaleString()}<br><span style="color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${profitText}</span>`;
+                    
+                    addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณขายสินค้าได้ ฿${price.toLocaleString()} (${profitText})`, 'system');
+                    loadGame(); // Reload state from DB
+                }
+            } else {
+                title.innerHTML = "ดีลล่ม! <i class='fas fa-ban'></i>";
+                title.style.color = "var(--danger-color)";
+                desc.innerText = "ลูกค้าปฏิเสธข้อเสนอ";
+                addMessage(`<b>[ระบบ] การเจรจาล้มเหลว:</b> ลูกค้ายกเลิกการซื้อขาย`, 'system');
+            }
+        }
+
+        function rejectCustomer() {
+            if (!isChatting) return;
+            addMessage("ไม่รับครับ เชิญครับ!", 'user');
+            
+            isChatting = false;
+            setInputState(false);
+            
+            itemCard.style.display = 'none';
+            resultPanel.style.display = 'block';
+            
+            const title = document.getElementById('result-title');
+            const desc = document.getElementById('result-desc');
+            
+            title.innerHTML = "เชิญลูกค้าออก! <i class='fas fa-door-open'></i>";
+            title.style.color = "var(--muted-text)";
+            desc.innerText = "คุณปฏิเสธการทำธุรกรรม";
+            addMessage(`<b>[ระบบ]</b> คุณเชิญลูกค้าออกจากร้าน`, 'system');
+        }
+
+        async function appraiseItem() {
+            if (!isChatting || currentTransType !== "sell") return;
+            
+            appraiseBtn.disabled = true;
+            addMessage(`<b>[ระบบ]</b> กำลังให้ผู้เชี่ยวชาญตรวจสอบสินค้า... (หักเงิน ฿500)`, 'system');
+            
+            try {
+                const res = await fetch('/api/appraise', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.status === 'ok') {
+                    money -= data.cost;
+                    updateStats();
+                    
+                    if (data.is_fake) {
+                        addMessage(`<b style="color:var(--danger-color)">[ผลตรวจ] นี่คือของปลอม!!</b> มูลค่าที่แท้จริงคือ ฿${data.true_value.toLocaleString()}`, 'system');
+                        document.getElementById('item-value').innerHTML = `<span style="text-decoration: line-through; color: var(--danger-color)">ราคากลาง: ฿${document.getElementById('item-value').innerText.replace(/\D/g,'')}</span> <br><span style="color: var(--danger-color); font-weight: bold;">(ของปลอม) มูลค่าจริง: ฿${data.true_value.toLocaleString()}</span>`;
+                    } else {
+                        addMessage(`<b style="color:var(--success-color)">[ผลตรวจ] นี่คือของแท้ 100%!</b> มูลค่ายังคงอยู่ที่ ฿${data.true_value.toLocaleString()}`, 'system');
+                    }
+                } else {
+                    addMessage(`<b>[ระบบ]</b> ข้อผิดพลาด: ${data.message}`, 'system');
+                    appraiseBtn.disabled = false;
+                }
+            } catch (e) {
+                addMessage(`<b>[ระบบ]</b> เชื่อมต่อผิดพลาด`, 'system');
+                appraiseBtn.disabled = false;
+            }
+        }
+
+        function renderInventory() {
+            inventoryList.innerHTML = '';
+            if (inventory.length === 0) {
+                emptyInvMsg.style.display = 'block';
+                inventoryList.appendChild(emptyInvMsg);
+            } else {
+                emptyInvMsg.style.display = 'none';
+                inventory.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'inventory-item';
+                    
+                    let mediaHtml = '';
+                    if (item.image && item.image.startsWith('icon:')) {
+                        mediaHtml = `<div style="width: 50px; height: 50px; border-radius: 8px; background: #1E293B; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="${item.image.split(':')[1]}" style="font-size: 24px; color: #EAB308;"></i></div>`;
+                    } else {
+                        mediaHtml = `<img src="${item.image}" alt="${item.name}">`;
+                    }
+                    
+                    div.innerHTML = `
+                        ${mediaHtml}
+                        <div class="inv-details">
+                            <div class="inv-name">${item.name}</div>
+                            <div class="inv-price">ทุน: ฿${item.bought_price.toLocaleString()} | มูลค่า: ฿${item.value.toLocaleString()}</div>
+                        </div>
+                    `;
+                    inventoryList.appendChild(div);
+                });
+            }
+        }
+
+        function openManager() {
+            document.getElementById('manager-overlay').style.display = 'flex';
+        }
+        
+        async function upgradeStaff(role) {
+            const isSure = await customConfirm("แน่ใจหรือไม่ว่าต้องการอัปเกรดพนักงานตำแหน่งนี้?", "ยืนยันการอัปเกรด");
+            if(!isSure) return;
+            try {
+                const res = await fetch('/api/upgrade_staff', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({role: role})
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    await customAlert(data.message, "อัปเกรดสำเร็จ!");
+                    loadGame();
+                } else {
+                    await customAlert(data.message, "ข้อผิดพลาด");
+                }
+            } catch (e) {}
+        }
+        
+        async function showEndOfDay() {
+            addMessage("หมดเวลาทำการของวันนี้แล้ว พนักงานกำลังเคลียร์ร้าน...", 'system');
+            try {
+                const res = await fetch('/api/end_day', { method: 'POST' });
+                const data = await res.json();
+                
+                document.getElementById('eod-day').innerText = data.new_day - 1;
+                document.getElementById('eod-rent').innerText = `฿${data.rent.toLocaleString()}`;
+                document.getElementById('eod-wages').innerText = `฿${data.wages.toLocaleString()}`;
+                
+                const ev = data.event;
+                const evEl = document.getElementById('eod-event');
+                evEl.innerHTML = `<b>${ev.name}</b><br>${ev.desc}<br>
+                                  <span style="color:${ev.money_mod >= 0 ? 'var(--success-color)':'var(--danger-color)'}">เงิน: ${ev.money_mod > 0 ? '+':''}${ev.money_mod}</span> | 
+                                  <span style="color:${ev.rep_mod >= 0 ? 'var(--success-color)':'var(--danger-color)'}">ชื่อเสียง: ${ev.rep_mod > 0 ? '+':''}${ev.rep_mod}</span>`;
+                
+                const logsEl = document.getElementById('eod-logs');
+                if (data.event_logs && data.event_logs.length > 0) {
+                    logsEl.innerHTML = '<b><i class="fas fa-sparkles"></i> ผลงานพนักงาน:</b><ul>' + data.event_logs.map(log => `<li>${log}</li>`).join('') + '</ul>';
+                } else {
+                    logsEl.innerHTML = '';
+                }
+                
+                document.getElementById('eod-overlay').style.display = 'flex';
+                
+                loadGame(); // refresh money and day
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        
+        function closeEod() {
+            document.getElementById('eod-overlay').style.display = 'none';
+            chatBox.innerHTML = '<div class="message msg-system">เริ่มเช้าวันใหม่! เปิดร้านรับลูกค้าได้เลย</div>';
+            nextCustomerBtn.style.display = 'block';
+            nextCustomerBtn.innerText = "เปิดร้านรับลูกค้าคนแรก";
+            
+            // hide customer avatar
+            document.getElementById('avatar-container').style.display = 'none';
+            document.getElementById('item-card').style.display = 'none';
+            document.getElementById('result-panel').style.display = 'none';
+            document.getElementById('role-badge').style.display = 'none';
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                    console.log('SW registered: ', registration);
+                }).catch(registrationError => {
+                    console.log('SW registration failed: ', registrationError);
+                });
+            });
+        }
+
+        // Start by loading data from server
+        loadGame();
+
+        // PWA Install Button Logic
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-pwa-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'inline-block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                }
+                deferredPrompt = null;
+                installBtn.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
