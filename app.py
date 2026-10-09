@@ -33,7 +33,9 @@ def init_db():
         ('guard_level', 'INTEGER DEFAULT 0'),
         ('repair_level', 'INTEGER DEFAULT 0'),
         ('forger_level', 'INTEGER DEFAULT 0'),
-        ('ad_level', 'INTEGER DEFAULT 0')
+        ('ad_level', 'INTEGER DEFAULT 0'),
+        ('pin', 'TEXT'),
+        ('nickname', 'TEXT')
     ]
     for col, definition in new_cols:
         try:
@@ -46,24 +48,17 @@ def init_db():
         c.execute('ALTER TABLE inventory ADD COLUMN true_value INTEGER DEFAULT 0')
     except:
         pass
+    try:
+        c.execute('ALTER TABLE inventory ADD COLUMN shop_pin TEXT')
+    except:
+        pass
     
-    # Check if shop exists
-    c.execute('SELECT * FROM shop WHERE id = 1')
-    if not c.fetchone():
-        c.execute('INSERT INTO shop (id, money, day, reputation, customers_left) VALUES (1, 100000, 1, 10, 5)')
     conn.commit()
     conn.close()
 
 init_db()
 
-current_game = {
-    "history": [],
-    "item": None,
-    "transaction_type": "sell", # 'sell' = customer sells to us, 'buy' = customer buys from us
-    "value": 0,
-    "min_price": 0, # for seller
-    "max_price": 0, # for buyer
-}
+current_games = {} # Key: pin, Value: game_state dict
 
 ITEMS = [
     {"name": "นาฬิกา Rolex รุ่นคุณปู่", "value": 150000, "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Rolex_Submariner.jpg/500px-Rolex_Submariner.jpg"},
@@ -130,14 +125,67 @@ def index():
 def serve_sw():
     return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 
-@app.route("/api/load_game", methods=["GET"])
-def load_game():
+@app.route("/api/register", methods=["POST"])
+def register():
+    data = request.json
+    nickname = data.get("nickname")
+    pin = data.get("pin")
+    
+    if not nickname:
+        return jsonify({"status": "error", "message": "กรุณาใส่ชื่อเล่น"})
+    if not pin or len(pin) != 6 or not pin.isdigit():
+        return jsonify({"status": "error", "message": "กรุณาตั้งรหัส PIN ให้ครบ 6 หลัก (ตัวเลขเท่านั้น)"})
+        
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT * FROM shop WHERE id = 1')
-    shop = dict(c.fetchone())
     
-    c.execute('SELECT * FROM inventory')
+    # Check if PIN is unique
+    c.execute('SELECT pin FROM shop WHERE pin = ?', (pin,))
+    if c.fetchone():
+        conn.close()
+        return jsonify({"status": "error", "message": "รหัส PIN นี้ถูกใช้งานแล้ว กรุณาใช้รหัสอื่น"})
+        
+    c.execute('INSERT INTO shop (pin, nickname, money, day, reputation, customers_left) VALUES (?, ?, 100000, 1, 10, 5)', (pin, nickname))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"status": "ok", "pin": pin, "nickname": nickname})
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.json
+    pin = data.get("pin")
+    if not pin:
+        return jsonify({"status": "error", "message": "PIN is required"})
+        
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT nickname FROM shop WHERE pin = ?', (pin,))
+    row = c.fetchone()
+    conn.close()
+    
+    if row:
+        return jsonify({"status": "ok", "nickname": row["nickname"], "pin": pin})
+    else:
+        return jsonify({"status": "error", "message": "ไม่พบ PIN นี้ในระบบ"})
+
+@app.route("/api/load_game", methods=["GET"])
+def load_game():
+    pin = request.args.get("pin")
+    if not pin:
+        return jsonify({"status": "error", "message": "PIN is required"})
+        
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('SELECT * FROM shop WHERE pin = ?', (pin,))
+    shop = c.fetchone()
+    if not shop:
+        conn.close()
+        return jsonify({"status": "error", "message": "Shop not found"})
+    
+    shop = dict(shop)
+    
+    c.execute('SELECT * FROM inventory WHERE shop_pin = ?', (pin,))
     inv = [dict(row) for row in c.fetchall()]
     conn.close()
     
@@ -146,6 +194,7 @@ def load_game():
         "day": shop["day"],
         "reputation": shop.get("reputation", 10),
         "customers_left": shop.get("customers_left", 5),
+        "nickname": shop.get("nickname", "Unknown"),
         "staff": {
             "guard": shop.get("guard_level", 0),
             "repair": shop.get("repair_level", 0),
@@ -157,10 +206,17 @@ def load_game():
 
 @app.route("/api/end_day", methods=["POST"])
 def end_day():
+    data = request.json
+    pin = data.get("pin")
+    
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT * FROM shop WHERE id = 1')
-    shop = dict(c.fetchone())
+    c.execute('SELECT * FROM shop WHERE pin = ?', (pin,))
+    shop_row = c.fetchone()
+    if not shop_row:
+        conn.close()
+        return jsonify({"status": "error", "message": "Shop not found"})
+    shop = dict(shop_row)
     
     rent = 1000
     
@@ -195,7 +251,7 @@ def end_day():
     # Repairman passive buff
     r_level = shop.get("repair_level", 0)
     if r_level > 0:
-        c.execute('SELECT * FROM inventory WHERE name LIKE "[พัง] %"')
+        c.execute('SELECT * FROM inventory WHERE shop_pin = ? AND name LIKE "[พัง] %"', (pin,))
         broken_items = c.fetchall()
         
         items_to_fix = 0
@@ -220,7 +276,7 @@ def end_day():
     
     c.execute('''UPDATE shop 
                  SET money = ?, day = ?, reputation = ?, customers_left = ?
-                 WHERE id = 1''', (new_money, new_day, new_rep, new_queue))
+                 WHERE pin = ?''', (new_money, new_day, new_rep, new_queue, pin))
     conn.commit()
     conn.close()
     
@@ -240,6 +296,7 @@ def end_day():
 @app.route("/api/upgrade_staff", methods=["POST"])
 def upgrade_staff():
     data = request.json
+    pin = data.get("pin")
     role = data.get("role")
     
     valid_roles = ["guard", "repair", "forger", "ad"]
@@ -248,8 +305,12 @@ def upgrade_staff():
         
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT * FROM shop WHERE id = 1')
-    shop = dict(c.fetchone())
+    c.execute('SELECT * FROM shop WHERE pin = ?', (pin,))
+    shop_row = c.fetchone()
+    if not shop_row:
+        conn.close()
+        return jsonify({"status": "error", "message": "Shop not found"})
+    shop = dict(shop_row)
     
     col = f"{role}_level"
     current_lvl = shop.get(col) if shop.get(col) is not None else 0
@@ -270,7 +331,7 @@ def upgrade_staff():
         conn.close()
         return jsonify({"status": "error", "message": f"เงินไม่พอ (ต้องการ {cost:,} บาท)"})
         
-    c.execute(f'UPDATE shop SET money = money - ?, {col} = ? WHERE id = 1', (cost, current_lvl + 1))
+    c.execute(f'UPDATE shop SET money = money - ?, {col} = ? WHERE pin = ?', (cost, current_lvl + 1, pin))
     conn.commit()
     conn.close()
     
@@ -278,21 +339,39 @@ def upgrade_staff():
 
 @app.route("/api/new_customer", methods=["POST"])
 def new_customer():
-    global current_game
+    global current_games
+    data = request.json
+    pin = data.get("pin")
+    
+    if pin not in current_games:
+        current_games[pin] = {
+            "history": [],
+            "item": None,
+            "transaction_type": "sell",
+            "value": 0,
+            "min_price": 0,
+            "max_price": 0,
+        }
+    current_game = current_games[pin]
+    
     conn = get_db()
     c = conn.cursor()
     
-    c.execute('SELECT * FROM shop WHERE id = 1')
-    shop = dict(c.fetchone())
+    c.execute('SELECT * FROM shop WHERE pin = ?', (pin,))
+    shop_row = c.fetchone()
+    if not shop_row:
+        conn.close()
+        return jsonify({"status": "error", "message": "Shop not found"})
+    shop = dict(shop_row)
     
     if shop.get("customers_left", 0) <= 0:
         conn.close()
         return jsonify({"status": "end_of_day"})
         
-    c.execute('UPDATE shop SET customers_left = customers_left - 1 WHERE id = 1')
+    c.execute('UPDATE shop SET customers_left = customers_left - 1 WHERE pin = ?', (pin,))
     conn.commit()
     
-    c.execute('SELECT * FROM inventory')
+    c.execute('SELECT * FROM inventory WHERE shop_pin = ?', (pin,))
     inventory = [dict(row) for row in c.fetchall()]
     conn.close()
     
@@ -427,7 +506,14 @@ def new_customer():
 
 @app.route("/api/appraise", methods=["POST"])
 def appraise_item():
-    global current_game
+    global current_games
+    data = request.json
+    pin = data.get("pin")
+    
+    if pin not in current_games:
+        return jsonify({"status": "error", "message": "Game session not found"})
+    current_game = current_games[pin]
+    
     if current_game.get("transaction_type") != "sell":
         return jsonify({"status": "error", "message": "Can only appraise when buying"})
     
@@ -436,15 +522,15 @@ def appraise_item():
         
     conn = get_db()
     c = conn.cursor()
-    c.execute('SELECT money FROM shop WHERE id = 1')
+    c.execute('SELECT money FROM shop WHERE pin = ?', (pin,))
     shop = c.fetchone()
     
     APPRAISAL_COST = 500
-    if shop["money"] < APPRAISAL_COST:
+    if not shop or shop["money"] < APPRAISAL_COST:
         conn.close()
         return jsonify({"status": "error", "message": "Not enough money to appraise (Cost: 500)"})
         
-    c.execute('UPDATE shop SET money = money - ? WHERE id = 1', (APPRAISAL_COST,))
+    c.execute('UPDATE shop SET money = money - ? WHERE pin = ?', (APPRAISAL_COST, pin))
     conn.commit()
     conn.close()
     
@@ -461,9 +547,14 @@ def appraise_item():
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    global current_game
+    global current_games
     data = request.json
+    pin = data.get("pin")
     user_message = data.get("message", "")
+    
+    if pin not in current_games:
+        return jsonify({"status": "error", "message": "Game session not found"})
+    current_game = current_games[pin]
     
     current_game["history"].append({"role": "user", "content": user_message})
     
@@ -505,13 +596,13 @@ def chat():
             
             if trans_type == "sell":
                 # ลูกค้าขายของให้เรา -> เราเสียเงิน, ได้ของเข้าคลัง (ใช้มูลค่าจริง อาจจะปลอม), ได้ reputation
-                c.execute('UPDATE shop SET money = money - ?, reputation = reputation + 1 WHERE id = 1', (agreed_price,))
-                c.execute('INSERT INTO inventory (name, value, true_value, bought_price, image) VALUES (?, ?, ?, ?, ?)', 
-                          (item["name"], current_game["value"], current_game["true_value"], agreed_price, item["image"]))
+                c.execute('UPDATE shop SET money = money - ?, reputation = reputation + 1 WHERE pin = ?', (agreed_price, pin))
+                c.execute('INSERT INTO inventory (name, value, true_value, bought_price, image, shop_pin) VALUES (?, ?, ?, ?, ?, ?)', 
+                          (item["name"], current_game["value"], current_game["true_value"], agreed_price, item["image"], pin))
             else:
                 # ลูกค้ามาซื้อของจากเรา -> เราได้เงิน, ของหายจากคลัง, ได้ reputation
-                c.execute('UPDATE shop SET money = money + ?, reputation = reputation + 1 WHERE id = 1', (agreed_price,))
-                c.execute('DELETE FROM inventory WHERE id = ?', (item.get("id", 0),))
+                c.execute('UPDATE shop SET money = money + ?, reputation = reputation + 1 WHERE pin = ?', (agreed_price, pin))
+                c.execute('DELETE FROM inventory WHERE id = ? AND shop_pin = ?', (item.get("id", 0), pin))
                 
             conn.commit()
             conn.close()

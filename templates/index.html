@@ -582,6 +582,8 @@
         <header>
             <h1><i class="fas fa-gem" style="color:var(--accent-color);"></i> <span class="hide-text">AI Dealer's Shop</span></h1>
             <div class="stats">
+                <button class="manage-btn" onclick="toggleMusic()" title="เปิด/ปิดเสียงยุคกลาง"><i id="music-icon" class="fas fa-volume-mute"></i> <span class="hide-text">เสียง</span></button>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.5" oninput="changeVolume(this.value)" style="width: 70px; margin-right: 15px; cursor: pointer;" title="ปรับความดังเสียง">
                 <button class="manage-btn" onclick="openManager()"><i class="fas fa-building"></i> <span class="hide-text">จัดการร้าน</span></button>
                 <div class="stat-box" title="วันที่"><i class="fas fa-calendar-alt"></i> <span class="hide-text">วันที่: </span><span id="day-counter">1</span></div>
                 <div class="stat-box" title="ลูกค้าที่รอคิว"><i class="fas fa-users"></i> <span class="hide-text">คิว: </span><span id="queue-counter">5</span></div>
@@ -722,7 +724,30 @@
         </div>
     </div>
 
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="auth-overlay" style="z-index: 999999; display: none;">
+        <div class="modal">
+            <h2><i class="fas fa-user-circle"></i> เข้าสู่ระบบ / สร้างบัญชี</h2>
+            <div class="modal-body" style="text-align: center;">
+                <div id="auth-error" style="color: var(--danger-color); margin-bottom: 10px; display: none;"></div>
+                
+                <h4 style="margin-bottom: 5px;">สำหรับผู้เล่นใหม่</h4>
+                <input type="text" id="auth-nickname" placeholder="ใส่ชื่อเล่นของคุณ" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
+                <input type="text" id="auth-new-pin" placeholder="ตั้งรหัส PIN 6 ตัวของคุณ" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" maxlength="6">
+                <button onclick="register()" style="width: 100%; background: var(--success-color); color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; margin-bottom: 20px;">สร้างบัญชี</button>
+                
+                <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
+                
+                <h4 style="margin-bottom: 5px;">สำหรับผู้เล่นเดิม</h4>
+                <input type="text" id="auth-pin" placeholder="ใส่รหัส PIN 6 ตัว" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" maxlength="6">
+                <button onclick="login()" style="width: 100%; background: var(--buy-color); color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer;">เข้าสู่ระบบด้วยรหัส PIN</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let user_pin = localStorage.getItem('user_pin');
+        let user_nickname = localStorage.getItem('user_nickname');
         let money = 100000;
         let day = 1;
         let isChatting = false;
@@ -786,8 +811,14 @@
 
         async function loadGame() {
             try {
-                const res = await fetch('/api/load_game');
+                const res = await fetch('/api/load_game?pin=' + user_pin);
                 const data = await res.json();
+                
+                if(data.status === 'error') {
+                    customAlert(data.message);
+                    return;
+                }
+                
                 money = data.money;
                 day = data.day;
                 inventory = data.inventory;
@@ -875,7 +906,11 @@
             addMessage("กำลังมีลูกค้าเดินเข้ามาในร้าน...", 'system');
 
             try {
-                const res = await fetch('/api/new_customer', { method: 'POST' });
+                const res = await fetch('/api/new_customer', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: user_pin })
+                });
                 const data = await res.json();
                 
                 chatBox.innerHTML = ''; // Clear loading msg
@@ -925,6 +960,7 @@
                     
                     addMessage("ลูกค้าเดินเข้ามาที่เคาน์เตอร์", 'system');
                     addMessage(data.message, 'ai');
+                    playSfx('door');
                     loadGame(); // refresh queue
                     
                     setInputState(true);
@@ -973,7 +1009,7 @@
                 const res = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ pin: user_pin, message: text })
                 });
                 const data = await res.json();
                 
@@ -1018,11 +1054,13 @@
                         title.style.color = "var(--danger-color)";
                         desc.innerText = `คุณมีเงินไม่พอจ่าย ฿${price.toLocaleString()}`;
                         addMessage(`<b>[ระบบ] ดีลล่ม:</b> คุณมีเงินไม่พอจ่าย ฿${price.toLocaleString()}`, 'system');
+                        playSfx('fail');
                     } else {
                         title.innerHTML = "รับซื้อสำเร็จ! <i class='fas fa-handshake'></i>";
                         title.style.color = "var(--success-color)";
                         desc.innerText = `ซื้อเข้าคลังราคา ฿${price.toLocaleString()}`;
                         addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณซื้อสินค้าในราคา ฿${price.toLocaleString()}`, 'system');
+                        playSfx('success');
                         loadGame(); // Reload state from DB
                     }
                 } else if (type === "buy") {
@@ -1035,6 +1073,7 @@
                     desc.innerHTML = `ขายได้ ฿${price.toLocaleString()}<br><span style="color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${profitText}</span>`;
                     
                     addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณขายสินค้าได้ ฿${price.toLocaleString()} (${profitText})`, 'system');
+                    playSfx('success');
                     loadGame(); // Reload state from DB
                 }
             } else {
@@ -1042,6 +1081,7 @@
                 title.style.color = "var(--danger-color)";
                 desc.innerText = "ลูกค้าปฏิเสธข้อเสนอ";
                 addMessage(`<b>[ระบบ] การเจรจาล้มเหลว:</b> ลูกค้ายกเลิกการซื้อขาย`, 'system');
+                playSfx('fail');
             }
         }
 
@@ -1062,6 +1102,7 @@
             title.style.color = "var(--muted-text)";
             desc.innerText = "คุณปฏิเสธการทำธุรกรรม";
             addMessage(`<b>[ระบบ]</b> คุณเชิญลูกค้าออกจากร้าน`, 'system');
+            playSfx('fail');
         }
 
         async function appraiseItem() {
@@ -1071,7 +1112,11 @@
             addMessage(`<b>[ระบบ]</b> กำลังให้ผู้เชี่ยวชาญตรวจสอบสินค้า... (หักเงิน ฿500)`, 'system');
             
             try {
-                const res = await fetch('/api/appraise', { method: 'POST' });
+                const res = await fetch('/api/appraise', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: user_pin })
+                });
                 const data = await res.json();
                 
                 if (data.status === 'ok') {
@@ -1135,7 +1180,7 @@
                 const res = await fetch('/api/upgrade_staff', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({role: role})
+                    body: JSON.stringify({ pin: user_pin, role: role })
                 });
                 const data = await res.json();
                 if (data.status === 'ok') {
@@ -1150,7 +1195,11 @@
         async function showEndOfDay() {
             addMessage("หมดเวลาทำการของวันนี้แล้ว พนักงานกำลังเคลียร์ร้าน...", 'system');
             try {
-                const res = await fetch('/api/end_day', { method: 'POST' });
+                const res = await fetch('/api/end_day', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: user_pin })
+                });
                 const data = await res.json();
                 
                 document.getElementById('eod-day').innerText = data.new_day - 1;
@@ -1202,8 +1251,178 @@
             });
         }
 
-        // Start by loading data from server
-        loadGame();
+        // Music Toggle Logic
+        const bgMusic = new Audio("https://upload.wikimedia.org/wikipedia/commons/5/58/Folk_Round_%28ISRC_USUAN1100357%29.mp3");
+        bgMusic.loop = true;
+        bgMusic.volume = 0.15; // Start quiet
+        let isMusicPlaying = false;
+
+        const sfxCash = new Audio("https://upload.wikimedia.org/wikipedia/commons/b/b5/Cash_register_opening.ogg");
+        sfxCash.volume = 0.6;
+        const sfxFail = new Audio("https://upload.wikimedia.org/wikipedia/commons/a/af/Wood_plank_drop.ogg");
+        sfxFail.volume = 0.6;
+        const sfxDoor = new Audio("https://upload.wikimedia.org/wikipedia/commons/2/23/Doorbell_ringing.ogg");
+        sfxDoor.volume = 0.5;
+        const sfxClick = new Audio("/static/audio/click.wav");
+        sfxClick.volume = 0.7;
+        const sfxCheer = new Audio("/static/audio/ยินดี.mp3");
+        sfxCheer.volume = 0.5;
+        const sfxBoo = new Audio("/static/audio/โห่.mp3");
+        sfxBoo.volume = 0.5;
+
+        function changeVolume(val) {
+            bgMusic.volume = Math.min(1.0, val * 0.3); // Background music always quieter
+            sfxCash.volume = Math.min(1.0, val * 1.5);
+            sfxFail.volume = Math.min(1.0, val * 1.5);
+            sfxDoor.volume = Math.min(1.0, val * 1.5);
+            sfxClick.volume = Math.min(1.0, val * 2.5); // Louder button clicks
+            sfxCheer.volume = Math.min(1.0, val * 2.0); // Loud
+            sfxBoo.volume = Math.min(1.0, val * 2.0);   // Loud
+        }
+
+        function toggleMusic() {
+            const icon = document.getElementById('music-icon');
+            if (isMusicPlaying) {
+                bgMusic.pause();
+                icon.className = "fas fa-volume-mute";
+                isMusicPlaying = false;
+            } else {
+                // Unlock all audios on iOS (play and immediately pause in user gesture)
+                sfxCash.play().then(() => { sfxCash.pause(); sfxCash.currentTime = 0; }).catch(()=>{});
+                sfxFail.play().then(() => { sfxFail.pause(); sfxFail.currentTime = 0; }).catch(()=>{});
+                sfxDoor.play().then(() => { sfxDoor.pause(); sfxDoor.currentTime = 0; }).catch(()=>{});
+                sfxClick.play().then(() => { sfxClick.pause(); sfxClick.currentTime = 0; }).catch(()=>{});
+                sfxCheer.play().then(() => { sfxCheer.pause(); sfxCheer.currentTime = 0; }).catch(()=>{});
+                sfxBoo.play().then(() => { sfxBoo.pause(); sfxBoo.currentTime = 0; }).catch(()=>{});
+                
+                bgMusic.play().catch(e => console.error("Audio play failed:", e));
+                icon.className = "fas fa-volume-up";
+                isMusicPlaying = true;
+            }
+        }
+
+        function playSfx(type) {
+            if (!isMusicPlaying) return; // Only play SFX if music is unmuted
+            
+            if (type === 'success') {
+                sfxCash.currentTime = 0;
+                sfxCash.play().catch(e => {});
+                sfxCheer.currentTime = 0;
+                sfxCheer.play().catch(e => {});
+            } else if (type === 'fail') {
+                sfxFail.currentTime = 0;
+                sfxFail.play().catch(e => {});
+                sfxBoo.currentTime = 0;
+                sfxBoo.play().catch(e => {});
+            } else if (type === 'door') {
+                sfxDoor.currentTime = 0;
+                sfxDoor.play().catch(e => {});
+            } else if (type === 'click') {
+                sfxClick.currentTime = 0;
+                sfxClick.play().catch(e => {});
+            }
+        }
+
+        // Play click sound on all buttons
+        document.addEventListener('click', function(e) {
+            if(e.target.closest('button')) {
+                playSfx('click');
+            }
+        });
+
+        // Auth functions
+        function initAuth() {
+            if (!user_pin) {
+                document.getElementById('auth-overlay').style.display = 'flex';
+            } else {
+                addMessage(`ยินดีต้อนรับกลับ, <b>${user_nickname || 'ผู้เล่น'}</b> (PIN: ${user_pin})`, 'system');
+                loadGame();
+            }
+        }
+        
+        async function register() {
+            const nickname = document.getElementById('auth-nickname').value.trim();
+            const pin = document.getElementById('auth-new-pin').value.trim();
+            const errEl = document.getElementById('auth-error');
+            
+            if (!nickname) {
+                errEl.innerText = "กรุณาใส่ชื่อเล่น";
+                errEl.style.display = "block";
+                return;
+            }
+            if (!pin || pin.length !== 6 || isNaN(pin)) {
+                errEl.innerText = "กรุณาตั้งรหัส PIN ให้ครบ 6 หลัก (ตัวเลขเท่านั้น)";
+                errEl.style.display = "block";
+                return;
+            }
+            
+            errEl.style.display = "none";
+            
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nickname, pin })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    user_pin = data.pin;
+                    user_nickname = data.nickname;
+                    localStorage.setItem('user_pin', user_pin);
+                    localStorage.setItem('user_nickname', user_nickname);
+                    
+                    document.getElementById('auth-overlay').style.display = 'none';
+                    await customAlert(`บัญชีถูกสร้างเรียบร้อยแล้ว!\n\nรหัส PIN ของคุณคือ: [ ${user_pin} ]\n\nโปรดจดจำไว้ให้ดี เพื่อใช้เข้าสู่ระบบในครั้งต่อไป`, "สร้างบัญชีสำเร็จ");
+                    addMessage(`ยินดีต้อนรับ, <b>${user_nickname}</b> (PIN: ${user_pin})`, 'system');
+                    loadGame();
+                } else {
+                    errEl.innerText = data.message;
+                    errEl.style.display = "block";
+                }
+            } catch (e) {
+                errEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+                errEl.style.display = "block";
+            }
+        }
+        
+        async function login() {
+            const pin = document.getElementById('auth-pin').value.trim();
+            const errEl = document.getElementById('auth-error');
+            if (!pin || pin.length !== 6) {
+                errEl.innerText = "กรุณาใส่รหัส PIN 6 ตัว";
+                errEl.style.display = "block";
+                return;
+            }
+            errEl.style.display = "none";
+            
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin })
+                });
+                const data = await res.json();
+                if (data.status === 'ok') {
+                    user_pin = data.pin;
+                    user_nickname = data.nickname;
+                    localStorage.setItem('user_pin', user_pin);
+                    localStorage.setItem('user_nickname', user_nickname);
+                    
+                    document.getElementById('auth-overlay').style.display = 'none';
+                    addMessage(`ยินดีต้อนรับกลับ, <b>${user_nickname}</b> (PIN: ${user_pin})`, 'system');
+                    loadGame();
+                } else {
+                    errEl.innerText = data.message;
+                    errEl.style.display = "block";
+                }
+            } catch (e) {
+                errEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
+                errEl.style.display = "block";
+            }
+        }
+
+        // Start by checking auth
+        initAuth();
     </script>
 </body>
 </html>
