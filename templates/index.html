@@ -1026,6 +1026,11 @@
                         setInputState(true);
                     }
                 } else {
+                    if (data.message === 'Game session not found') {
+                        addMessage("<b>[ระบบ]</b> เซิร์ฟเวอร์เริ่มต้นใหม่ กำลังเชื่อมต่อข้อมูล...", 'system');
+                        loadGame();
+                        return;
+                    }
                     addMessage("Error: " + data.message, 'system');
                     setInputState(true);
                 }
@@ -1130,6 +1135,11 @@
                         addMessage(`<b style="color:var(--success-color)">[ผลตรวจ] นี่คือของแท้ 100%!</b> มูลค่ายังคงอยู่ที่ ฿${data.true_value.toLocaleString()}`, 'system');
                     }
                 } else {
+                    if (data.message === 'Game session not found') {
+                        addMessage("<b>[ระบบ]</b> เซิร์ฟเวอร์เริ่มต้นใหม่ กำลังเชื่อมต่อข้อมูล...", 'system');
+                        loadGame();
+                        return;
+                    }
                     addMessage(`<b>[ระบบ]</b> ข้อผิดพลาด: ${data.message}`, 'system');
                     appraiseBtn.disabled = false;
                 }
@@ -1265,9 +1275,9 @@
         sfxDoor.volume = 0.5;
         const sfxClick = new Audio("/static/audio/click.wav");
         sfxClick.volume = 0.7;
-        const sfxCheer = new Audio("/static/audio/ยินดี.mp3");
+        const sfxCheer = new Audio("/static/audio/cheer.mp3");
         sfxCheer.volume = 0.5;
-        const sfxBoo = new Audio("/static/audio/โห่.mp3");
+        const sfxBoo = new Audio("/static/audio/boo.mp3");
         sfxBoo.volume = 0.5;
 
         function changeVolume(val) {
