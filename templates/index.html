@@ -2,9 +2,16 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1280, user-scalable=yes">
+    <meta name="viewport" content="width=1280, viewport-fit=cover">
+    <meta name="description" content="AI Dealer's Life - เกมจำลองร้านรับซื้อของมือสอง ต่อรองราคากับลูกค้า AI">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#0F172A">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AI Dealer">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
     <title>AI Dealer's Life</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -20,10 +27,18 @@
             --danger-color: #ef4444;
             --buy-color: #3b82f6;
             --sell-color: #eab308;
+            --primary-color: #3b82f6;
+            --bg-card: #1e293b;
         }
 
         * {
             box-sizing: border-box;
+        }
+
+        html {
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+            height: 100%;
         }
 
         body {
@@ -37,6 +52,28 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            height: 100dvh; /* iPad Safari: ไม่โดนแถบเครื่องมือบัง */
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* ปุ่ม/ส่วนที่กดได้: กันแตะสองทีแล้วซูม และกันไฮไลต์ข้อความบน iPad */
+        button, .item-card, .manage-btn, input[type="range"] {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        img {
+            -webkit-user-drag: none;
+            -webkit-touch-callout: none;
+        }
+
+        /* iOS จะซูมหน้าอัตโนมัติถ้าตัวอักษรในช่องพิมพ์เล็กกว่า 16px */
+        input, textarea, select {
+            font-size: 16px !important;
         }
 
         .container {
@@ -52,6 +89,7 @@
             flex-direction: column;
             overflow: hidden;
             height: 90vh;
+            height: 92dvh;
         }
 
         header {
@@ -127,6 +165,7 @@
             align-items: center;
             background: rgba(255,255,255,0.02);
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             position: relative;
         }
 
@@ -165,8 +204,10 @@
             flex-shrink: 0;
         }
 
-        .customer-area:hover .avatar-container {
-            transform: scale(1.05);
+        @media (hover: hover) {
+            .customer-area:hover .avatar-container {
+                transform: scale(1.05);
+            }
         }
 
         .avatar-container img {
@@ -352,10 +393,12 @@
             letter-spacing: 0.5px;
         }
 
-        button:hover:not(:disabled) {
-            background: var(--accent-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(234, 179, 8, 0.4);
+        @media (hover: hover) {
+            button:hover:not(:disabled) {
+                background: var(--accent-hover);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(234, 179, 8, 0.4);
+            }
         }
 
         button:active:not(:disabled) {
@@ -484,6 +527,10 @@
             text-align: center;
             background-color: var(--panel-bg);
             box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+            max-height: 90vh;
+            max-height: 90dvh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .modal h2 { margin-top: 0; margin-bottom: 20px; color: white; }
@@ -634,7 +681,7 @@
                 </div>
                 
                 <div class="input-area">
-                    <input type="text" id="user-input" placeholder="พิมพ์ข้อความเจรจาต่อรอง หรือเสนอราคาที่นี่..." disabled onkeypress="handleEnter(event)">
+                    <input type="text" id="user-input" placeholder="พิมพ์ข้อความเจรจาต่อรอง หรือเสนอราคาที่นี่..." disabled onkeydown="handleEnter(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" maxlength="300">
                     <button id="send-btn" onclick="sendMessage()" disabled title="ส่งข้อความ"><i class="fas fa-paper-plane"></i></button>
                     <button id="appraise-btn" onclick="appraiseItem()" class="appraise-btn" disabled style="display:none;" title="ตรวจสอบ (฿500)"><i class="fas fa-search-dollar"></i></button>
                     <button id="reject-btn" onclick="rejectCustomer()" class="danger-btn" disabled title="ปฏิเสธ"><i class="fas fa-times"></i></button>
@@ -733,60 +780,39 @@
                 
                 <h4 style="margin-bottom: 5px;">สำหรับผู้เล่นใหม่</h4>
                 <input type="text" id="auth-nickname" placeholder="ใส่ชื่อเล่นของคุณ" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;">
-                <input type="text" id="auth-new-pin" placeholder="ตั้งรหัส PIN 6 ตัวของคุณ" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" maxlength="6">
+                <input type="text" id="auth-new-pin" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="ตั้งรหัส PIN 6 ตัวของคุณ" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" maxlength="6">
                 <button onclick="register()" style="width: 100%; background: var(--success-color); color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer; margin-bottom: 20px;">สร้างบัญชี</button>
                 
                 <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0;">
                 
                 <h4 style="margin-bottom: 5px;">สำหรับผู้เล่นเดิม</h4>
-                <input type="text" id="auth-pin" placeholder="ใส่รหัส PIN 6 ตัว" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" maxlength="6">
+                <input type="text" id="auth-pin" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="ใส่รหัส PIN 6 ตัว" style="width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" maxlength="6">
                 <button onclick="login()" style="width: 100%; background: var(--buy-color); color: white; padding: 10px; border-radius: 8px; border: none; cursor: pointer;">เข้าสู่ระบบด้วยรหัส PIN</button>
             </div>
         </div>
     </div>
 
     <script>
-        let user_pin = localStorage.getItem('user_pin');
-        let user_nickname = localStorage.getItem('user_nickname');
+        // ===================== STATE =====================
+        function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+        function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+        function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+        let user_pin = lsGet('user_pin');
+        let user_nickname = lsGet('user_nickname');
+        let saveToken = lsGet('save_token');   // เซฟสำรองที่เซิร์ฟเวอร์เซ็นไว้ (กันข้อมูลหายตอนเซิร์ฟเวอร์รีสตาร์ท)
+        let sessionToken = null;               // สถานะลูกค้าคนปัจจุบัน
         let money = 100000;
         let day = 1;
         let isChatting = false;
+        let isSending = false;
+        let isCallingCustomer = false;
         let inventory = [];
         let currentTransType = "sell";
         let currentItemValue = 0;
+        const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
         const chatBox = document.getElementById('chat-box');
-        
-        function customConfirm(message, title="แจ้งเตือน") {
-            return new Promise((resolve) => {
-                const overlay = document.getElementById('custom-modal-overlay');
-                document.getElementById('custom-modal-title').innerText = title;
-                document.getElementById('custom-modal-body').innerText = message;
-                const btnCancel = document.getElementById('custom-modal-cancel');
-                const btnOk = document.getElementById('custom-modal-ok');
-                
-                btnCancel.style.display = 'block';
-                overlay.style.display = 'flex';
-                
-                btnOk.onclick = () => { overlay.style.display = 'none'; resolve(true); };
-                btnCancel.onclick = () => { overlay.style.display = 'none'; resolve(false); };
-            });
-        }
-        
-        function customAlert(message, title="แจ้งเตือน") {
-            return new Promise((resolve) => {
-                const overlay = document.getElementById('custom-modal-overlay');
-                document.getElementById('custom-modal-title').innerText = title;
-                document.getElementById('custom-modal-body').innerText = message;
-                const btnCancel = document.getElementById('custom-modal-cancel');
-                const btnOk = document.getElementById('custom-modal-ok');
-                
-                btnCancel.style.display = 'none';
-                overlay.style.display = 'flex';
-                
-                btnOk.onclick = () => { overlay.style.display = 'none'; resolve(true); };
-            });
-        }
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
         const nextCustomerBtn = document.getElementById('next-customer-btn');
@@ -796,84 +822,175 @@
         const avatarContainer = document.getElementById('avatar-container');
         const inventoryList = document.getElementById('inventory-list');
         const emptyInvMsg = document.getElementById('empty-inv');
-
         const roleBadge = document.getElementById('role-badge');
         const resultPanel = document.getElementById('result-panel');
+        const FALLBACK_IMG = '/static/icon-192.png';
 
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        function fmt(n) { return Number(n || 0).toLocaleString(); }
+
+        // ===================== MODALS =====================
+        let modalResolve = null;
+        function openModal(message, title, showCancel) {
+            return new Promise((resolve) => {
+                // ถ้ามี modal ค้างอยู่ ให้ปิดอันเก่าก่อน (กัน Promise ค้างตลอดไป)
+                if (modalResolve) { const r = modalResolve; modalResolve = null; r(false); }
+                modalResolve = resolve;
+                const overlay = document.getElementById('custom-modal-overlay');
+                document.getElementById('custom-modal-title').innerText = title;
+                document.getElementById('custom-modal-body').innerText = message;
+                const btnCancel = document.getElementById('custom-modal-cancel');
+                const btnOk = document.getElementById('custom-modal-ok');
+                btnCancel.style.display = showCancel ? 'block' : 'none';
+                overlay.style.display = 'flex';
+                const done = (val) => {
+                    overlay.style.display = 'none';
+                    if (modalResolve === resolve) modalResolve = null;
+                    resolve(val);
+                };
+                btnOk.onclick = () => done(true);
+                btnCancel.onclick = () => done(false);
+            });
+        }
+        function customConfirm(message, title = "แจ้งเตือน") { return openModal(message, title, true); }
+        function customAlert(message, title = "แจ้งเตือน") { return openModal(message, title, false); }
+
+        // ===================== API =====================
+        async function api(path, body = {}, timeoutMs = 40000) {
+            const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+            try {
+                const res = await fetch(path, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: user_pin, save: saveToken, ...body }),
+                    signal: ctrl ? ctrl.signal : undefined,
+                    cache: 'no-store'
+                });
+                let data;
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    data = { status: 'error', message: `เซิร์ฟเวอร์ตอบกลับผิดพลาด (HTTP ${res.status}) ลองใหม่อีกครั้ง` };
+                }
+                if (data && data.save) { saveToken = data.save; lsSet('save_token', saveToken); }
+                if (data && data.session) sessionToken = data.session;
+                return data || { status: 'error', message: 'ไม่มีข้อมูลตอบกลับ' };
+            } catch (e) {
+                return {
+                    status: 'error', network: true,
+                    message: (e && e.name === 'AbortError') ? 'หมดเวลาเชื่อมต่อ (เน็ตช้าหรือเซิร์ฟเวอร์ไม่ตอบ) ลองใหม่อีกครั้ง' : 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ ลองใหม่อีกครั้ง'
+                };
+            } finally {
+                if (timer) clearTimeout(timer);
+            }
+        }
+
+        function handleShopLost() {
+            lsDel('user_pin'); lsDel('user_nickname'); lsDel('save_token');
+            user_pin = null; user_nickname = ""; saveToken = null; sessionToken = null;
+            isChatting = false;
+            setInputState(false);
+            document.getElementById('auth-overlay').style.display = 'flex';
+            customAlert("ไม่พบข้อมูลบัญชีของคุณบนเซิร์ฟเวอร์ กรุณาเข้าสู่ระบบหรือสร้างบัญชีใหม่");
+        }
+
+        function handleSessionLost() {
+            isChatting = false;
+            sessionToken = null;
+            setInputState(false);
+            appraiseBtn.disabled = true;
+            itemCard.style.display = 'none';
+            resultPanel.style.display = 'block';
+            const title = document.getElementById('result-title');
+            title.innerHTML = "ลูกค้าเดินออกไปแล้ว <i class='fas fa-door-open'></i>";
+            title.style.color = "var(--muted-text)";
+            document.getElementById('result-desc').innerText = "การเชื่อมต่อกับลูกค้าคนนี้หลุด (ข้อมูลร้านยังอยู่ครบ) กด \"คนต่อไป\" เพื่อเล่นต่อได้เลย";
+            addMessage("<b>[ระบบ]</b> การเชื่อมต่อกับลูกค้าคนนี้หลุด กรุณาเรียกลูกค้าคนต่อไป", 'system');
+            loadGame();
+        }
+
+        // คืนค่า true ถ้าจัดการ error ไปแล้ว
+        function handleCommonError(data) {
+            if (!data || data.status !== 'error') return false;
+            if (data.message === 'Shop not found') { handleShopLost(); return true; }
+            if (data.message === 'Game session not found') { handleSessionLost(); return true; }
+            return false;
+        }
+
+        // ===================== UI =====================
         function toggleItemDetails() {
             const overlay = document.getElementById('item-details-overlay');
-            if (overlay.style.display === 'none') {
-                overlay.style.display = 'flex';
-            } else {
-                overlay.style.display = 'none';
-            }
+            overlay.style.display = (overlay.style.display === 'none' || !overlay.style.display) ? 'flex' : 'none';
         }
 
         async function loadGame() {
-            try {
-                const res = await fetch('/api/load_game?pin=' + user_pin);
-                const data = await res.json();
-                
-                if(data.status === 'error') {
-                    customAlert(data.message);
-                    return;
-                }
-                
-                money = data.money;
-                day = data.day;
-                inventory = data.inventory;
-                
-                document.getElementById('rep-counter').innerText = data.reputation;
-                document.getElementById('queue-counter').innerText = data.customers_left;
-                
-                // Update manager modal buttons
-                const costs_map = {
-                    "guard": [10000, 25000, 50000],
-                    "repair": [15000, 30000, 60000],
-                    "forger": [30000, 60000, 100000],
-                    "ad": [20000, 40000, 80000]
-                };
-                
-                ['guard', 'repair', 'forger', 'ad'].forEach(role => {
-                    const lvl = data.staff[role];
-                    const starEl = document.getElementById(`star-${role}`);
-                    const btnEl = document.getElementById(`btn-upgrade-${role}`);
-                    
-                    starEl.innerText = '⭐'.repeat(lvl);
-                    
-                    if (lvl >= 3) {
-                        btnEl.innerText = "MAX";
-                        btnEl.disabled = true;
-                        btnEl.style.background = "var(--success-color)";
-                    } else {
-                        btnEl.innerText = `Lv.${lvl+1} (฿${costs_map[role][lvl].toLocaleString()})`;
-                        btnEl.disabled = false;
-                        btnEl.style.background = "var(--buy-color)";
-                    }
-                });
-                
-                updateStats();
-                renderInventory();
-            } catch (e) {
-                console.error("Failed to load game data");
+            if (!user_pin) return false;
+            const data = await api('/api/load_game');
+            if (data.status === 'error') {
+                if (data.message === 'Shop not found') { handleShopLost(); return false; }
+                console.warn('loadGame:', data.message);
+                return false;
             }
+
+            money = data.money;
+            day = data.day;
+            inventory = data.inventory || [];
+
+            document.getElementById('rep-counter').innerText = data.reputation;
+            document.getElementById('queue-counter').innerText = data.customers_left;
+
+            const costs_map = {
+                "guard": [10000, 25000, 50000],
+                "repair": [15000, 30000, 60000],
+                "forger": [30000, 60000, 100000],
+                "ad": [20000, 40000, 80000]
+            };
+
+            ['guard', 'repair', 'forger', 'ad'].forEach(role => {
+                const lvl = Math.max(0, Math.min(3, (data.staff && data.staff[role]) || 0));
+                const starEl = document.getElementById(`star-${role}`);
+                const btnEl = document.getElementById(`btn-upgrade-${role}`);
+                starEl.innerText = '⭐'.repeat(lvl);
+                if (lvl >= 3) {
+                    btnEl.innerText = "MAX";
+                    btnEl.disabled = true;
+                    btnEl.style.background = "var(--success-color)";
+                } else {
+                    btnEl.innerText = `Lv.${lvl + 1} (฿${fmt(costs_map[role][lvl])})`;
+                    btnEl.disabled = false;
+                    btnEl.style.background = "var(--buy-color)";
+                }
+            });
+
+            updateStats();
+            renderInventory();
+            return true;
         }
 
         function updateStats() {
-            document.getElementById('player-money').innerText = money.toLocaleString();
+            document.getElementById('player-money').innerText = fmt(money);
             document.getElementById('day-counter').innerText = day;
         }
 
+        // type: 'system' (อนุญาต HTML ที่เราเขียนเอง), 'ai' / 'user' (escape เสมอ)
         function addMessage(text, type) {
             const div = document.createElement('div');
             div.className = `message msg-${type}`;
-            div.innerHTML = text; // allow bolding system messages
+            if (type === 'system') div.innerHTML = text;
+            else div.textContent = text;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
         function handleEnter(e) {
-            if (e.key === 'Enter') {
+            // e.isComposing / keyCode 229 = กำลังพิมพ์ผ่าน IME (คีย์บอร์ดไทยบน iPad) อย่าเพิ่งส่ง
+            if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
+                e.preventDefault();
                 sendMessage();
             }
         }
@@ -882,19 +999,39 @@
             userInput.disabled = !enabled;
             sendBtn.disabled = !enabled;
             rejectBtn.disabled = !enabled;
-            
-            if (currentTransType === "sell") {
-                appraiseBtn.style.display = 'inline-block';
-                // Only enable if not already appraised, handled by appraise logic, but we can just tie it to enabled for now
-            } else {
-                appraiseBtn.style.display = 'none';
+            appraiseBtn.style.display = (currentTransType === "sell") ? 'inline-block' : 'none';
+            // iPad: ไม่โฟกัสอัตโนมัติ เพราะคีย์บอร์ดจะเด้งขึ้นมาบังจอทุกครั้งที่ลูกค้าตอบ
+            if (enabled && !isTouch) userInput.focus();
+            if (!enabled && isTouch) userInput.blur();
+        }
+
+        function setItemImage(src) {
+            const imgEl = document.getElementById('item-image');
+            const iconEl = document.getElementById('item-icon');
+            if (src && src.startsWith('icon:')) {
+                imgEl.style.display = 'none';
+                iconEl.className = src.split(':')[1];
+                iconEl.style.display = 'block';
+                return;
             }
-            
-            if (enabled) userInput.focus();
+            iconEl.style.display = 'none';
+            imgEl.onerror = () => {
+                imgEl.onerror = null;
+                imgEl.style.display = 'none';
+                iconEl.className = 'fas fa-box-open';
+                iconEl.style.display = 'block';
+            };
+            imgEl.src = src || FALLBACK_IMG;
+            imgEl.style.display = 'block';
         }
 
         async function nextCustomer() {
-            // Reset UI for next customer
+            if (isCallingCustomer || !user_pin) return;
+            isCallingCustomer = true;
+            isChatting = false;
+            sessionToken = null;
+            setInputState(false);
+
             nextCustomerBtn.style.display = 'none';
             resultPanel.style.display = 'none';
             itemCard.style.display = 'none';
@@ -902,185 +1039,169 @@
             roleBadge.style.display = 'none';
             document.getElementById('item-details-overlay').style.display = 'none';
             chatBox.innerHTML = '';
-
             addMessage("กำลังมีลูกค้าเดินเข้ามาในร้าน...", 'system');
 
             try {
-                const res = await fetch('/api/new_customer', { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: user_pin })
-                });
-                const data = await res.json();
-                
-                chatBox.innerHTML = ''; // Clear loading msg
-                
+                const data = await api('/api/new_customer');
+                chatBox.innerHTML = '';
+
                 if (data.status === 'end_of_day') {
-                    showEndOfDay();
+                    await showEndOfDay();
                     return;
                 }
 
-                if (data.status === 'ok') {
+                if (data.status === 'ok' && data.item) {
                     currentTransType = data.type;
-                    currentItemValue = data.item.value;
-                    
-                    document.getElementById('customer-avatar').src = data.avatar;
+                    currentItemValue = data.item.value || 0;
+
+                    const avatarEl = document.getElementById('customer-avatar');
+                    avatarEl.onerror = () => { avatarEl.onerror = null; avatarEl.src = FALLBACK_IMG; };
+                    avatarEl.src = data.avatar || FALLBACK_IMG;
                     avatarContainer.style.display = 'block';
-                    
-                    if (data.item.image && data.item.image.startsWith('icon:')) {
-                        document.getElementById('item-image').style.display = 'none';
-                        const iconEl = document.getElementById('item-icon');
-                        iconEl.className = data.item.image.split(':')[1];
-                        iconEl.style.display = 'block';
-                    } else {
-                        document.getElementById('item-icon').style.display = 'none';
-                        const imgEl = document.getElementById('item-image');
-                        imgEl.src = data.item.image;
-                        imgEl.style.display = 'block';
-                    }
-                    
+
+                    setItemImage(data.item.image);
                     document.getElementById('item-name').innerText = data.item.name;
-                    document.getElementById('item-value').innerText = `ราคากลาง: ฿${data.item.value.toLocaleString()}`;
+                    document.getElementById('item-value').innerText = `ราคากลาง: ฿${fmt(data.item.value)}`;
                     itemCard.style.display = 'block';
                     roleBadge.style.display = 'inline-block';
-                    
+
+                    const actionText = document.getElementById('item-action-text');
                     if (currentTransType === "buy") {
                         roleBadge.innerText = "ลูกค้ามาขอซื้อของ";
                         roleBadge.className = "role-badge role-buy";
-                        document.getElementById('item-action-text').innerText = "สนใจซื้อ:";
-                        document.getElementById('item-action-text').style.color = "var(--buy-color)";
+                        actionText.innerText = "สนใจซื้อ:";
+                        actionText.style.color = "var(--buy-color)";
+                        appraiseBtn.disabled = true;
                     } else {
                         roleBadge.innerText = "ลูกค้ามาเสนอขาย";
                         roleBadge.className = "role-badge role-sell";
-                        document.getElementById('item-action-text').innerText = "เสนอขาย:";
-                        document.getElementById('item-action-text').style.color = "var(--sell-color)";
+                        actionText.innerText = "เสนอขาย:";
+                        actionText.style.color = "var(--sell-color)";
                         appraiseBtn.disabled = false;
                     }
-                    
-                    
+
+                    if (typeof data.customers_left === 'number') {
+                        document.getElementById('queue-counter').innerText = data.customers_left;
+                    }
+
                     addMessage("ลูกค้าเดินเข้ามาที่เคาน์เตอร์", 'system');
                     addMessage(data.message, 'ai');
                     playSfx('door');
-                    loadGame(); // refresh queue
-                    
-                    setInputState(true);
+
                     isChatting = true;
+                    setInputState(true);
                 } else {
-                    addMessage("Error: " + data.message, 'system');
+                    if (handleCommonError(data)) return;
+                    addMessage("<b>[ระบบ]</b> " + escapeHtml(data.message || 'เกิดข้อผิดพลาด'), 'system');
                     nextCustomerBtn.style.display = 'block';
                 }
-            } catch (e) {
-                chatBox.innerHTML = '';
-                addMessage("Connection error", 'system');
-                nextCustomerBtn.style.display = 'block';
+            } finally {
+                isCallingCustomer = false;
             }
         }
 
         async function sendMessage() {
+            if (isSending || !isChatting) return;
             const text = userInput.value.trim();
-            if (!text || !isChatting) return;
-            
-            // Check for typos in numbers
-            const textRaw = text.replace(/,/g, '');
-            const numMatch = textRaw.match(/\d+/);
-            if (numMatch) {
-                const proposedPrice = parseInt(numMatch[0]);
-                if (proposedPrice < currentItemValue * 0.1 || proposedPrice > currentItemValue * 5) {
-                    const confirmMsg = `⚠️ ตัวเลขที่คุณพิมพ์ (${proposedPrice.toLocaleString()}) ค่อนข้างห่างจากราคากลางมาก\n\nคุณพิมพ์ 0 ตกหล่นหรือเกินไปหรือไม่?\nกด "ตกลง" เพื่อส่งข้อความต่อ หรือกด "ยกเลิก" เพื่อกลับไปแก้ไข`;
-                    const isSure = await customConfirm(confirmMsg, "ยืนยันราคา");
-                    if (!isSure) {
-                        userInput.focus();
-                        return;
-                    }
-                }
-            }
-
-            addMessage(text, 'user');
-            userInput.value = '';
-            setInputState(false);
-            
-            const typingDiv = document.createElement('div');
-            typingDiv.className = 'message msg-ai';
-            typingDiv.innerHTML = '<div class="loader"></div>';
-            chatBox.appendChild(typingDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            if (!text) return;
+            isSending = true;
 
             try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: user_pin, message: text })
-                });
-                const data = await res.json();
-                
-                chatBox.removeChild(typingDiv);
+                // Check for typos in numbers
+                const textRaw = text.replace(/,/g, '');
+                const numMatch = textRaw.match(/\d+/);
+                if (numMatch && currentItemValue > 0) {
+                    const proposedPrice = parseInt(numMatch[0], 10);
+                    if (proposedPrice < currentItemValue * 0.1 || proposedPrice > currentItemValue * 5) {
+                        const confirmMsg = `⚠️ ตัวเลขที่คุณพิมพ์ (${fmt(proposedPrice)}) ค่อนข้างห่างจากราคากลางมาก\n\nคุณพิมพ์ 0 ตกหล่นหรือเกินไปหรือไม่?\nกด "ตกลง" เพื่อส่งข้อความต่อ หรือกด "ยกเลิก" เพื่อกลับไปแก้ไข`;
+                        const isSure = await customConfirm(confirmMsg, "ยืนยันราคา");
+                        if (!isSure || !isChatting) {
+                            if (!isTouch) userInput.focus();
+                            return;
+                        }
+                    }
+                }
+
+                addMessage(text, 'user');
+                userInput.value = '';
+                setInputState(false);
+
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'message msg-ai';
+                typingDiv.innerHTML = '<div class="loader"></div>';
+                chatBox.appendChild(typingDiv);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                const data = await api('/api/chat', { message: text, session: sessionToken });
+                if (chatBox.contains(typingDiv)) chatBox.removeChild(typingDiv);
 
                 if (data.status === 'ok') {
                     if (data.message) addMessage(data.message, 'ai');
-                    
+
                     if (data.accepted) {
                         endDeal(true, data.price, data.item, data.type);
+                    } else if (data.insufficient_funds) {
+                        endDeal(false, data.price, null, data.type, 'no_money');
+                    } else if (data.item_missing) {
+                        endDeal(false, data.price, null, data.type, 'item_missing');
                     } else if (data.rejected) {
                         endDeal(false);
                     } else {
                         setInputState(true);
                     }
                 } else {
-                    if (data.message === 'Game session not found') {
-                        addMessage("<b>[ระบบ]</b> เซิร์ฟเวอร์เริ่มต้นใหม่ กำลังเชื่อมต่อข้อมูล...", 'system');
-                        loadGame();
-                        return;
-                    }
-                    addMessage("Error: " + data.message, 'system');
+                    if (handleCommonError(data)) return;
+                    addMessage("<b>[ระบบ]</b> " + escapeHtml(data.message), 'system');
+                    // ส่งไม่สำเร็จ -> คืนข้อความให้แก้/ส่งใหม่ได้
+                    if (!userInput.value) userInput.value = text;
                     setInputState(true);
                 }
-            } catch (e) {
-                if(chatBox.contains(typingDiv)) chatBox.removeChild(typingDiv);
-                addMessage("Connection error", 'system');
-                setInputState(true);
+            } finally {
+                isSending = false;
             }
         }
 
-        function endDeal(success, price = 0, item = null, type = "sell") {
+        function endDeal(success, price = 0, item = null, type = "sell", reason = null) {
             isChatting = false;
+            sessionToken = null;
             setInputState(false);
-            
-            // Hide item card, show result panel
+            appraiseBtn.disabled = true;
+
             itemCard.style.display = 'none';
             resultPanel.style.display = 'block';
-            
+
             const title = document.getElementById('result-title');
             const desc = document.getElementById('result-desc');
-            
+
             if (success) {
                 if (type === "sell") {
-                    if (price > money) {
-                        title.innerHTML = "เงินไม่พอ! <i class='fas fa-money-bill-wave' style='color:var(--danger-color)'></i>";
-                        title.style.color = "var(--danger-color)";
-                        desc.innerText = `คุณมีเงินไม่พอจ่าย ฿${price.toLocaleString()}`;
-                        addMessage(`<b>[ระบบ] ดีลล่ม:</b> คุณมีเงินไม่พอจ่าย ฿${price.toLocaleString()}`, 'system');
-                        playSfx('fail');
-                    } else {
-                        title.innerHTML = "รับซื้อสำเร็จ! <i class='fas fa-handshake'></i>";
-                        title.style.color = "var(--success-color)";
-                        desc.innerText = `ซื้อเข้าคลังราคา ฿${price.toLocaleString()}`;
-                        addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณซื้อสินค้าในราคา ฿${price.toLocaleString()}`, 'system');
-                        playSfx('success');
-                        loadGame(); // Reload state from DB
-                    }
-                } else if (type === "buy") {
+                    title.innerHTML = "รับซื้อสำเร็จ! <i class='fas fa-handshake'></i>";
+                    title.style.color = "var(--success-color)";
+                    desc.innerText = `ซื้อเข้าคลังราคา ฿${fmt(price)}`;
+                    addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณซื้อสินค้าในราคา ฿${fmt(price)}`, 'system');
+                } else {
                     title.innerHTML = "ขายออกแล้ว! <i class='fas fa-coins'></i>";
                     title.style.color = "var(--success-color)";
-                    
-                    let profit = price - item.bought_price;
-                    let profitText = profit >= 0 ? `กำไร +฿${profit.toLocaleString()}` : `ขาดทุน ฿${Math.abs(profit).toLocaleString()}`;
-                    
-                    desc.innerHTML = `ขายได้ ฿${price.toLocaleString()}<br><span style="color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${profitText}</span>`;
-                    
-                    addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณขายสินค้าได้ ฿${price.toLocaleString()} (${profitText})`, 'system');
-                    playSfx('success');
-                    loadGame(); // Reload state from DB
+                    const profit = price - ((item && item.bought_price) || 0);
+                    const profitText = profit >= 0 ? `กำไร +฿${fmt(profit)}` : `ขาดทุน ฿${fmt(Math.abs(profit))}`;
+                    desc.innerHTML = `ขายได้ ฿${fmt(price)}<br><span style="color:${profit >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">${profitText}</span>`;
+                    addMessage(`<b>[ระบบ] ตกลงซื้อขายสำเร็จ:</b> คุณขายสินค้าได้ ฿${fmt(price)} (${profitText})`, 'system');
                 }
+                playSfx('success');
+                loadGame();
+            } else if (reason === 'no_money') {
+                title.innerHTML = "เงินไม่พอ! <i class='fas fa-money-bill-wave' style='color:var(--danger-color)'></i>";
+                title.style.color = "var(--danger-color)";
+                desc.innerText = `คุณมีเงินไม่พอจ่าย ฿${fmt(price)}`;
+                addMessage(`<b>[ระบบ] ดีลล่ม:</b> คุณมีเงินไม่พอจ่าย ฿${fmt(price)}`, 'system');
+                playSfx('fail');
+            } else if (reason === 'item_missing') {
+                title.innerHTML = "ไม่มีของในคลัง! <i class='fas fa-box-open'></i>";
+                title.style.color = "var(--danger-color)";
+                desc.innerText = "สินค้าชิ้นนี้ไม่อยู่ในคลังแล้ว ดีลถูกยกเลิก";
+                addMessage(`<b>[ระบบ] ดีลล่ม:</b> สินค้าชิ้นนี้ไม่อยู่ในคลังแล้ว`, 'system');
+                playSfx('fail');
+                loadGame();
             } else {
                 title.innerHTML = "ดีลล่ม! <i class='fas fa-ban'></i>";
                 title.style.color = "var(--danger-color)";
@@ -1091,18 +1212,19 @@
         }
 
         function rejectCustomer() {
-            if (!isChatting) return;
+            if (!isChatting || isSending) return;
             addMessage("ไม่รับครับ เชิญครับ!", 'user');
-            
+
             isChatting = false;
+            sessionToken = null;
             setInputState(false);
-            
+            appraiseBtn.disabled = true;
+
             itemCard.style.display = 'none';
             resultPanel.style.display = 'block';
-            
+
             const title = document.getElementById('result-title');
             const desc = document.getElementById('result-desc');
-            
             title.innerHTML = "เชิญลูกค้าออก! <i class='fas fa-door-open'></i>";
             title.style.color = "var(--muted-text)";
             desc.innerText = "คุณปฏิเสธการทำธุรกรรม";
@@ -1111,323 +1233,367 @@
         }
 
         async function appraiseItem() {
-            if (!isChatting || currentTransType !== "sell") return;
-            
+            if (!isChatting || isSending || currentTransType !== "sell" || appraiseBtn.disabled) return;
+
             appraiseBtn.disabled = true;
             addMessage(`<b>[ระบบ]</b> กำลังให้ผู้เชี่ยวชาญตรวจสอบสินค้า... (หักเงิน ฿500)`, 'system');
-            
-            try {
-                const res = await fetch('/api/appraise', { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: user_pin })
-                });
-                const data = await res.json();
-                
-                if (data.status === 'ok') {
-                    money -= data.cost;
-                    updateStats();
-                    
-                    if (data.is_fake) {
-                        addMessage(`<b style="color:var(--danger-color)">[ผลตรวจ] นี่คือของปลอม!!</b> มูลค่าที่แท้จริงคือ ฿${data.true_value.toLocaleString()}`, 'system');
-                        document.getElementById('item-value').innerHTML = `<span style="text-decoration: line-through; color: var(--danger-color)">ราคากลาง: ฿${document.getElementById('item-value').innerText.replace(/\D/g,'')}</span> <br><span style="color: var(--danger-color); font-weight: bold;">(ของปลอม) มูลค่าจริง: ฿${data.true_value.toLocaleString()}</span>`;
-                    } else {
-                        addMessage(`<b style="color:var(--success-color)">[ผลตรวจ] นี่คือของแท้ 100%!</b> มูลค่ายังคงอยู่ที่ ฿${data.true_value.toLocaleString()}`, 'system');
-                    }
+
+            const data = await api('/api/appraise', { session: sessionToken });
+
+            if (data.status === 'ok') {
+                money -= data.cost;
+                updateStats();
+                if (data.is_fake) {
+                    addMessage(`<b style="color:var(--danger-color)">[ผลตรวจ] นี่คือของปลอม!!</b> มูลค่าที่แท้จริงคือ ฿${fmt(data.true_value)}`, 'system');
+                    document.getElementById('item-value').innerHTML = `<span style="text-decoration: line-through; color: var(--danger-color)">ราคากลาง: ฿${fmt(currentItemValue)}</span> <br><span style="color: var(--danger-color); font-weight: bold;">(ของปลอม) มูลค่าจริง: ฿${fmt(data.true_value)}</span>`;
                 } else {
-                    if (data.message === 'Game session not found') {
-                        addMessage("<b>[ระบบ]</b> เซิร์ฟเวอร์เริ่มต้นใหม่ กำลังเชื่อมต่อข้อมูล...", 'system');
-                        loadGame();
-                        return;
-                    }
-                    addMessage(`<b>[ระบบ]</b> ข้อผิดพลาด: ${data.message}`, 'system');
-                    appraiseBtn.disabled = false;
+                    addMessage(`<b style="color:var(--success-color)">[ผลตรวจ] นี่คือของแท้ 100%!</b> มูลค่ายังคงอยู่ที่ ฿${fmt(data.true_value)}`, 'system');
                 }
-            } catch (e) {
-                addMessage(`<b>[ระบบ]</b> เชื่อมต่อผิดพลาด`, 'system');
-                appraiseBtn.disabled = false;
+            } else {
+                if (handleCommonError(data)) return;
+                addMessage(`<b>[ระบบ]</b> ข้อผิดพลาด: ${escapeHtml(data.message)}`, 'system');
+                if (isChatting && !String(data.message).includes('ไปแล้ว')) appraiseBtn.disabled = false;
             }
         }
 
         function renderInventory() {
             inventoryList.innerHTML = '';
-            if (inventory.length === 0) {
+            if (!inventory.length) {
                 emptyInvMsg.style.display = 'block';
                 inventoryList.appendChild(emptyInvMsg);
-            } else {
-                emptyInvMsg.style.display = 'none';
-                inventory.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'inventory-item';
-                    
-                    let mediaHtml = '';
-                    if (item.image && item.image.startsWith('icon:')) {
-                        mediaHtml = `<div style="width: 50px; height: 50px; border-radius: 8px; background: #1E293B; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="${item.image.split(':')[1]}" style="font-size: 24px; color: #EAB308;"></i></div>`;
-                    } else {
-                        mediaHtml = `<img src="${item.image}" alt="${item.name}">`;
-                    }
-                    
-                    div.innerHTML = `
-                        ${mediaHtml}
-                        <div class="inv-details">
-                            <div class="inv-name">${item.name}</div>
-                            <div class="inv-price">ทุน: ฿${item.bought_price.toLocaleString()} | มูลค่า: ฿${item.value.toLocaleString()}</div>
-                        </div>
-                    `;
-                    inventoryList.appendChild(div);
-                });
+                return;
             }
+            emptyInvMsg.style.display = 'none';
+            inventory.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'inventory-item';
+
+                let mediaHtml;
+                if (item.image && item.image.startsWith('icon:')) {
+                    mediaHtml = `<div style="width: 50px; height: 50px; border-radius: 8px; background: #1E293B; display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><i class="${escapeHtml(item.image.split(':')[1])}" style="font-size: 24px; color: #EAB308;"></i></div>`;
+                } else {
+                    mediaHtml = `<img src="${escapeHtml(item.image || FALLBACK_IMG)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMG}'">`;
+                }
+
+                div.innerHTML = `
+                    ${mediaHtml}
+                    <div class="inv-details">
+                        <div class="inv-name">${escapeHtml(item.name)}</div>
+                        <div class="inv-price">ทุน: ฿${fmt(item.bought_price)} | มูลค่า: ฿${fmt(item.value)}</div>
+                    </div>
+                `;
+                inventoryList.appendChild(div);
+            });
         }
 
         function openManager() {
+            loadGame();
             document.getElementById('manager-overlay').style.display = 'flex';
         }
-        
+
+        let isUpgrading = false;
         async function upgradeStaff(role) {
+            if (isUpgrading) return;
             const isSure = await customConfirm("แน่ใจหรือไม่ว่าต้องการอัปเกรดพนักงานตำแหน่งนี้?", "ยืนยันการอัปเกรด");
-            if(!isSure) return;
+            if (!isSure) return;
+            isUpgrading = true;
             try {
-                const res = await fetch('/api/upgrade_staff', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ pin: user_pin, role: role })
-                });
-                const data = await res.json();
+                const data = await api('/api/upgrade_staff', { role: role });
                 if (data.status === 'ok') {
+                    await loadGame();
                     await customAlert(data.message, "อัปเกรดสำเร็จ!");
-                    loadGame();
                 } else {
+                    if (handleCommonError(data)) return;
                     await customAlert(data.message, "ข้อผิดพลาด");
                 }
-            } catch (e) {}
-        }
-        
-        async function showEndOfDay() {
-            addMessage("หมดเวลาทำการของวันนี้แล้ว พนักงานกำลังเคลียร์ร้าน...", 'system');
-            try {
-                const res = await fetch('/api/end_day', { 
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: user_pin })
-                });
-                const data = await res.json();
-                
-                document.getElementById('eod-day').innerText = data.new_day - 1;
-                document.getElementById('eod-rent').innerText = `฿${data.rent.toLocaleString()}`;
-                document.getElementById('eod-wages').innerText = `฿${data.wages.toLocaleString()}`;
-                
-                const ev = data.event;
-                const evEl = document.getElementById('eod-event');
-                evEl.innerHTML = `<b>${ev.name}</b><br>${ev.desc}<br>
-                                  <span style="color:${ev.money_mod >= 0 ? 'var(--success-color)':'var(--danger-color)'}">เงิน: ${ev.money_mod > 0 ? '+':''}${ev.money_mod}</span> | 
-                                  <span style="color:${ev.rep_mod >= 0 ? 'var(--success-color)':'var(--danger-color)'}">ชื่อเสียง: ${ev.rep_mod > 0 ? '+':''}${ev.rep_mod}</span>`;
-                
-                const logsEl = document.getElementById('eod-logs');
-                if (data.event_logs && data.event_logs.length > 0) {
-                    logsEl.innerHTML = '<b><i class="fas fa-sparkles"></i> ผลงานพนักงาน:</b><ul>' + data.event_logs.map(log => `<li>${log}</li>`).join('') + '</ul>';
-                } else {
-                    logsEl.innerHTML = '';
-                }
-                
-                document.getElementById('eod-overlay').style.display = 'flex';
-                
-                loadGame(); // refresh money and day
-            } catch (e) {
-                console.error(e);
+            } finally {
+                isUpgrading = false;
             }
         }
-        
+
+        async function showEndOfDay() {
+            addMessage("หมดเวลาทำการของวันนี้แล้ว พนักงานกำลังเคลียร์ร้าน...", 'system');
+            const data = await api('/api/end_day');
+
+            if (data.status !== 'ok') {
+                if (handleCommonError(data)) return;
+                // เช่น เน็ตหลุด หรือวันนี้ถูกปิดไปแล้ว -> รีเฟรชข้อมูลแล้วให้กดต่อได้
+                await loadGame();
+                addMessage("<b>[ระบบ]</b> " + escapeHtml(data.message || 'เกิดข้อผิดพลาด') , 'system');
+                nextCustomerBtn.style.display = 'block';
+                return;
+            }
+
+            document.getElementById('eod-day').innerText = data.new_day - 1;
+            document.getElementById('eod-rent').innerText = `฿${fmt(data.rent)}`;
+            document.getElementById('eod-wages').innerText = `฿${fmt(data.wages)}`;
+
+            const ev = data.event || { name: '-', desc: '', money_mod: 0, rep_mod: 0 };
+            document.getElementById('eod-event').innerHTML = `<b>${escapeHtml(ev.name)}</b><br>${escapeHtml(ev.desc)}<br>
+                <span style="color:${ev.money_mod >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">เงิน: ${ev.money_mod > 0 ? '+' : ''}${fmt(ev.money_mod)}</span> |
+                <span style="color:${ev.rep_mod >= 0 ? 'var(--success-color)' : 'var(--danger-color)'}">ชื่อเสียง: ${ev.rep_mod > 0 ? '+' : ''}${ev.rep_mod}</span>`;
+
+            const logsEl = document.getElementById('eod-logs');
+            if (data.event_logs && data.event_logs.length > 0) {
+                logsEl.innerHTML = '<b><i class="fas fa-star"></i> ผลงานพนักงาน:</b><ul>' + data.event_logs.map(log => `<li>${escapeHtml(log)}</li>`).join('') + '</ul>';
+            } else {
+                logsEl.innerHTML = '';
+            }
+
+            document.getElementById('eod-overlay').style.display = 'flex';
+            loadGame();
+        }
+
         function closeEod() {
             document.getElementById('eod-overlay').style.display = 'none';
             chatBox.innerHTML = '<div class="message msg-system">เริ่มเช้าวันใหม่! เปิดร้านรับลูกค้าได้เลย</div>';
             nextCustomerBtn.style.display = 'block';
-            nextCustomerBtn.innerText = "เปิดร้านรับลูกค้าคนแรก";
-            
-            // hide customer avatar
-            document.getElementById('avatar-container').style.display = 'none';
-            document.getElementById('item-card').style.display = 'none';
-            document.getElementById('result-panel').style.display = 'none';
-            document.getElementById('role-badge').style.display = 'none';
+            nextCustomerBtn.innerHTML = '<i class="fas fa-store"></i> <span class="hide-text">เปิดร้านรับลูกค้าคนแรก</span>';
+            avatarContainer.style.display = 'none';
+            itemCard.style.display = 'none';
+            resultPanel.style.display = 'none';
+            roleBadge.style.display = 'none';
         }
 
-        // Register Service Worker
+        // ===================== SERVICE WORKER =====================
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(registration => {
-                    console.log('SW registered: ', registration);
-                }).catch(registrationError => {
-                    console.log('SW registration failed: ', registrationError);
-                });
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed: ', err));
             });
         }
 
-        // Music Toggle Logic
-        const bgMusic = new Audio("https://upload.wikimedia.org/wikipedia/commons/5/58/Folk_Round_%28ISRC_USUAN1100357%29.mp3");
-        bgMusic.loop = true;
-        bgMusic.volume = 0.15; // Start quiet
-        let isMusicPlaying = false;
+        // ===================== AUDIO (Web Audio API) =====================
+        // iPad/iOS: ค่า audio.volume ถูกล็อก (ปรับไม่ได้) -> ต้องใช้ GainNode ของ Web Audio แทน
+        // ไฟล์เสียงทั้งหมดอยู่ในเซิร์ฟเวอร์เราเอง ชื่อภาษาอังกฤษ และเป็น mp3/wav (iOS ไม่รองรับ .ogg ในหลายเวอร์ชัน)
+        const SFX_FILES = {
+            cash: '/static/audio/cash.mp3',
+            fail: '/static/audio/fail.mp3',
+            door: '/static/audio/door.mp3',
+            click: '/static/audio/click.wav',
+            cheer: '/static/audio/cheer.mp3',
+            boo: '/static/audio/boo.mp3'
+        };
+        const SFX_LEVEL = { cash: 0.7, fail: 0.8, door: 0.6, click: 0.9, cheer: 1.0, boo: 1.0 };
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let actx = null, musicGain = null, sfxGain = null, musicNode = null;
+        const sfxBuffers = {};
+        let isMusicPlaying = lsGet('sound_on') === '1';
+        let volumeLevel = parseFloat(lsGet('volume'));
+        if (isNaN(volumeLevel)) volumeLevel = 0.5;
+        document.getElementById('volume-slider').value = volumeLevel;
 
-        const sfxCash = new Audio("https://upload.wikimedia.org/wikipedia/commons/b/b5/Cash_register_opening.ogg");
-        sfxCash.volume = 0.6;
-        const sfxFail = new Audio("https://upload.wikimedia.org/wikipedia/commons/a/af/Wood_plank_drop.ogg");
-        sfxFail.volume = 0.6;
-        const sfxDoor = new Audio("https://upload.wikimedia.org/wikipedia/commons/2/23/Doorbell_ringing.ogg");
-        sfxDoor.volume = 0.5;
-        const sfxClick = new Audio("/static/audio/click.wav");
-        sfxClick.volume = 0.7;
-        const sfxCheer = new Audio("/static/audio/cheer.mp3");
-        sfxCheer.volume = 0.5;
-        const sfxBoo = new Audio("/static/audio/boo.mp3");
-        sfxBoo.volume = 0.5;
+        const bgMusic = new Audio('/static/audio/bgm.mp3');
+        bgMusic.loop = true;
+        bgMusic.preload = 'none';
+        bgMusic.setAttribute('playsinline', '');
+
+        function decode(ab) {
+            // รูปแบบ callback รองรับ Safari รุ่นเก่า
+            return new Promise((resolve, reject) => actx.decodeAudioData(ab, resolve, reject));
+        }
+
+        function initAudio() {
+            if (actx) {
+                if (actx.state !== 'running') actx.resume().catch(() => {});
+                return;
+            }
+            if (!AudioCtx) { applyVolume(); return; }
+            try {
+                // iOS 17+: ให้เสียงดังแม้เปิดโหมดเงียบ (เหมือนเล่นเพลง)
+                if (navigator.audioSession) navigator.audioSession.type = 'playback';
+            } catch (e) {}
+            actx = new AudioCtx();
+            const master = actx.createGain();
+            master.connect(actx.destination);
+            musicGain = actx.createGain(); musicGain.connect(master);
+            sfxGain = actx.createGain(); sfxGain.connect(master);
+            try {
+                musicNode = actx.createMediaElementSource(bgMusic);
+                musicNode.connect(musicGain);
+            } catch (e) { musicNode = null; }
+            applyVolume();
+
+            // ปลดล็อกเสียงของ iOS ด้วยเสียงเงียบ 1 sample ระหว่างที่ผู้ใช้แตะจอ
+            const silent = actx.createBuffer(1, 1, 22050);
+            const src = actx.createBufferSource();
+            src.buffer = silent; src.connect(actx.destination); src.start(0);
+            if (actx.state !== 'running') actx.resume().catch(() => {});
+
+            Object.keys(SFX_FILES).forEach(name => {
+                fetch(SFX_FILES[name])
+                    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+                    .then(decode)
+                    .then(buf => { sfxBuffers[name] = buf; })
+                    .catch(e => console.warn('SFX load failed:', name, e));
+            });
+        }
+
+        function applyVolume() {
+            const v = Math.max(0, Math.min(1, volumeLevel));
+            if (actx) {
+                musicGain.gain.value = v * 0.25;              // เพลงพื้นหลังเบากว่าเสียงเอฟเฟกต์เสมอ
+                sfxGain.gain.value = Math.min(1.5, v * 2.0);  // เสียงโห่/ดีใจ/กดปุ่ม ดังชัด
+                bgMusic.volume = musicNode ? 1 : v * 0.25;
+            } else {
+                bgMusic.volume = v * 0.25;
+            }
+        }
 
         function changeVolume(val) {
-            bgMusic.volume = Math.min(1.0, val * 0.3); // Background music always quieter
-            sfxCash.volume = Math.min(1.0, val * 1.5);
-            sfxFail.volume = Math.min(1.0, val * 1.5);
-            sfxDoor.volume = Math.min(1.0, val * 1.5);
-            sfxClick.volume = Math.min(1.0, val * 2.5); // Louder button clicks
-            sfxCheer.volume = Math.min(1.0, val * 2.0); // Loud
-            sfxBoo.volume = Math.min(1.0, val * 2.0);   // Loud
+            volumeLevel = parseFloat(val) || 0;
+            lsSet('volume', String(volumeLevel));
+            applyVolume();
+        }
+
+        function updateMusicIcon() {
+            document.getElementById('music-icon').className = isMusicPlaying ? "fas fa-volume-up" : "fas fa-volume-mute";
+        }
+
+        function startMusic() {
+            initAudio();
+            const p = bgMusic.play();
+            if (p && p.catch) p.catch(e => console.warn("Music play failed:", e));
         }
 
         function toggleMusic() {
-            const icon = document.getElementById('music-icon');
             if (isMusicPlaying) {
                 bgMusic.pause();
-                icon.className = "fas fa-volume-mute";
                 isMusicPlaying = false;
             } else {
-                // Unlock all audios on iOS (play and immediately pause in user gesture)
-                sfxCash.play().then(() => { sfxCash.pause(); sfxCash.currentTime = 0; }).catch(()=>{});
-                sfxFail.play().then(() => { sfxFail.pause(); sfxFail.currentTime = 0; }).catch(()=>{});
-                sfxDoor.play().then(() => { sfxDoor.pause(); sfxDoor.currentTime = 0; }).catch(()=>{});
-                sfxClick.play().then(() => { sfxClick.pause(); sfxClick.currentTime = 0; }).catch(()=>{});
-                sfxCheer.play().then(() => { sfxCheer.pause(); sfxCheer.currentTime = 0; }).catch(()=>{});
-                sfxBoo.play().then(() => { sfxBoo.pause(); sfxBoo.currentTime = 0; }).catch(()=>{});
-                
-                bgMusic.play().catch(e => console.error("Audio play failed:", e));
-                icon.className = "fas fa-volume-up";
                 isMusicPlaying = true;
+                startMusic();
             }
+            lsSet('sound_on', isMusicPlaying ? '1' : '0');
+            updateMusicIcon();
+        }
+
+        function playBuffer(name) {
+            const buf = sfxBuffers[name];
+            if (!actx || !buf) return;
+            if (actx.state !== 'running') actx.resume().catch(() => {});
+            const src = actx.createBufferSource();
+            src.buffer = buf;
+            const g = actx.createGain();
+            g.gain.value = SFX_LEVEL[name] || 1;
+            src.connect(g); g.connect(sfxGain);
+            src.start(0);
         }
 
         function playSfx(type) {
-            if (!isMusicPlaying) return; // Only play SFX if music is unmuted
-            
-            if (type === 'success') {
-                sfxCash.currentTime = 0;
-                sfxCash.play().catch(e => {});
-                sfxCheer.currentTime = 0;
-                sfxCheer.play().catch(e => {});
-            } else if (type === 'fail') {
-                sfxFail.currentTime = 0;
-                sfxFail.play().catch(e => {});
-                sfxBoo.currentTime = 0;
-                sfxBoo.play().catch(e => {});
-            } else if (type === 'door') {
-                sfxDoor.currentTime = 0;
-                sfxDoor.play().catch(e => {});
-            } else if (type === 'click') {
-                sfxClick.currentTime = 0;
-                sfxClick.play().catch(e => {});
-            }
+            if (!isMusicPlaying) return; // เล่นเสียงเฉพาะตอนเปิดเสียงไว้
+            if (type === 'success') { playBuffer('cash'); playBuffer('cheer'); }
+            else if (type === 'fail') { playBuffer('fail'); playBuffer('boo'); }
+            else playBuffer(type);
         }
 
+        updateMusicIcon();
+
+        // แตะจอครั้งแรก -> ปลดล็อกเสียง (iOS บังคับว่าต้องมาจากการแตะของผู้ใช้)
+        function firstGesture() {
+            initAudio();
+            if (isMusicPlaying && bgMusic.paused) startMusic();
+        }
+        document.addEventListener('touchend', firstGesture, { passive: true });
+        document.addEventListener('click', firstGesture);
+
+        // กลับมาจากแอปอื่น / ปลดล็อกจอ -> iOS จะพักเสียงไว้ ต้องสั่งเล่นต่อ
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (actx && actx.state !== 'running') actx.resume().catch(() => {});
+                if (isMusicPlaying && bgMusic.paused) bgMusic.play().catch(() => {});
+            } else if (isMusicPlaying) {
+                bgMusic.pause();
+            }
+        });
+
         // Play click sound on all buttons
-        document.addEventListener('click', function(e) {
-            if(e.target.closest('button')) {
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('button') && !e.target.closest('[onclick="toggleMusic()"]')) {
                 playSfx('click');
             }
         });
 
-        // Auth functions
+        // ===================== AUTH =====================
         function initAuth() {
             if (!user_pin) {
                 document.getElementById('auth-overlay').style.display = 'flex';
             } else {
-                addMessage(`ยินดีต้อนรับกลับ, <b>${user_nickname || 'ผู้เล่น'}</b> (PIN: ${user_pin})`, 'system');
+                addMessage(`ยินดีต้อนรับกลับ, <b>${escapeHtml(user_nickname || 'ผู้เล่น')}</b> (PIN: ${escapeHtml(user_pin)})`, 'system');
                 loadGame();
             }
         }
-        
+
+        let isAuthing = false;
         async function register() {
+            if (isAuthing) return;
             const nickname = document.getElementById('auth-nickname').value.trim();
             const pin = document.getElementById('auth-new-pin').value.trim();
             const errEl = document.getElementById('auth-error');
-            
+
             if (!nickname) {
                 errEl.innerText = "กรุณาใส่ชื่อเล่น";
                 errEl.style.display = "block";
                 return;
             }
-            if (!pin || pin.length !== 6 || isNaN(pin)) {
+            if (!/^\d{6}$/.test(pin)) {
                 errEl.innerText = "กรุณาตั้งรหัส PIN ให้ครบ 6 หลัก (ตัวเลขเท่านั้น)";
                 errEl.style.display = "block";
                 return;
             }
-            
             errEl.style.display = "none";
-            
+            isAuthing = true;
             try {
-                const res = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nickname, pin })
-                });
-                const data = await res.json();
+                const data = await api('/api/register', { nickname, pin, save: null });
                 if (data.status === 'ok') {
                     user_pin = data.pin;
                     user_nickname = data.nickname;
-                    localStorage.setItem('user_pin', user_pin);
-                    localStorage.setItem('user_nickname', user_nickname);
-                    
+                    lsSet('user_pin', user_pin);
+                    lsSet('user_nickname', user_nickname);
+
                     document.getElementById('auth-overlay').style.display = 'none';
+                    if (document.activeElement) document.activeElement.blur();
                     await customAlert(`บัญชีถูกสร้างเรียบร้อยแล้ว!\n\nรหัส PIN ของคุณคือ: [ ${user_pin} ]\n\nโปรดจดจำไว้ให้ดี เพื่อใช้เข้าสู่ระบบในครั้งต่อไป`, "สร้างบัญชีสำเร็จ");
-                    addMessage(`ยินดีต้อนรับ, <b>${user_nickname}</b> (PIN: ${user_pin})`, 'system');
+                    addMessage(`ยินดีต้อนรับ, <b>${escapeHtml(user_nickname)}</b> (PIN: ${escapeHtml(user_pin)})`, 'system');
                     loadGame();
                 } else {
                     errEl.innerText = data.message;
                     errEl.style.display = "block";
                 }
-            } catch (e) {
-                errEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
-                errEl.style.display = "block";
+            } finally {
+                isAuthing = false;
             }
         }
-        
+
         async function login() {
+            if (isAuthing) return;
             const pin = document.getElementById('auth-pin').value.trim();
             const errEl = document.getElementById('auth-error');
-            if (!pin || pin.length !== 6) {
-                errEl.innerText = "กรุณาใส่รหัส PIN 6 ตัว";
+            if (!/^\d{6}$/.test(pin)) {
+                errEl.innerText = "กรุณาใส่รหัส PIN 6 ตัว (ตัวเลข)";
                 errEl.style.display = "block";
                 return;
             }
             errEl.style.display = "none";
-            
+            isAuthing = true;
             try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin })
-                });
-                const data = await res.json();
+                // ส่งเซฟสำรองของเครื่องนี้ไปด้วย (ถ้าเป็น PIN เดียวกัน เซิร์ฟเวอร์จะกู้ข้อมูลให้)
+                const data = await api('/api/login', { pin, save: lsGet('save_token') });
                 if (data.status === 'ok') {
                     user_pin = data.pin;
                     user_nickname = data.nickname;
-                    localStorage.setItem('user_pin', user_pin);
-                    localStorage.setItem('user_nickname', user_nickname);
-                    
+                    lsSet('user_pin', user_pin);
+                    lsSet('user_nickname', user_nickname);
+
                     document.getElementById('auth-overlay').style.display = 'none';
-                    addMessage(`ยินดีต้อนรับกลับ, <b>${user_nickname}</b> (PIN: ${user_pin})`, 'system');
+                    if (document.activeElement) document.activeElement.blur();
+                    addMessage(`ยินดีต้อนรับกลับ, <b>${escapeHtml(user_nickname)}</b> (PIN: ${escapeHtml(user_pin)})`, 'system');
                     loadGame();
                 } else {
                     errEl.innerText = data.message;
                     errEl.style.display = "block";
                 }
-            } catch (e) {
-                errEl.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ";
-                errEl.style.display = "block";
+            } finally {
+                isAuthing = false;
             }
         }
 
