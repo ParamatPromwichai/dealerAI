@@ -59,3 +59,7 @@ ALTER TABLE public.shop ADD COLUMN IF NOT EXISTS loan_principal BIGINT DEFAULT 0
 
 -- 7. เพิ่มคอลัมน์ระบบพนักงานสุ่มดาว (Employee Recruitment & Candidates System)
 ALTER TABLE public.shop ADD COLUMN IF NOT EXISTS staff_data TEXT;
+
+-- 8. เพิ่มคอลัมน์สภาพสินค้า (Item Condition System)
+ALTER TABLE public.inventory ADD COLUMN IF NOT EXISTS condition INTEGER DEFAULT 100;
+

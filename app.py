@@ -68,7 +68,7 @@ SHOP_FIELDS = ["nickname", "money", "day", "reputation", "customers_left",
                "guard_level", "repair_level", "forger_level", "ad_level",
                "version", "active_customer",
                "loan_remaining", "loan_daily", "loan_days_left", "loan_principal", "staff_data"]
-INV_FIELDS = ["name", "value", "true_value", "bought_price", "image"]
+INV_FIELDS = ["name", "value", "true_value", "bought_price", "image", "condition"]
 
 STAFF_ROLE_INFO = {
     "guard": {
@@ -699,6 +699,235 @@ AVATARS = [
     {"url": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=80", "gender": "หญิง (ผู้หญิง)"}
 ]
 
+def get_condition_info(pct):
+    pct = max(10, min(100, int(pct if pct is not None else 100)))
+    if pct >= 95:
+        return {"pct": pct, "name": "ใหม่กริบ (Mint)", "color": "#10b981", "badge_class": "badge-mint", "multiplier": 1.0}
+    elif pct >= 80:
+        return {"pct": pct, "name": "ดีเยี่ยม (Excellent)", "color": "#06b6d4", "badge_class": "badge-excellent", "multiplier": 0.90}
+    elif pct >= 65:
+        return {"pct": pct, "name": "สภาพดี (Good)", "color": "#3b82f6", "badge_class": "badge-good", "multiplier": 0.80}
+    elif pct >= 45:
+        return {"pct": pct, "name": "พอใช้ (Fair)", "color": "#f59e0b", "badge_class": "badge-fair", "multiplier": 0.65}
+    elif pct >= 25:
+        return {"pct": pct, "name": "ชำรุด (Damaged)", "color": "#f97316", "badge_class": "badge-damaged", "multiplier": 0.45}
+    else:
+        return {"pct": pct, "name": "เสียหายหนัก (Broken)", "color": "#ef4444", "badge_class": "badge-broken", "multiplier": 0.30}
+
+CUSTOMER_MOODS = [
+    {
+        "id": "joyful",
+        "name": "ร่าเริงแจ่มใส",
+        "icon": "fas fa-laugh-beam",
+        "color": "#10b981",
+        "desc": "อารมณ์ดีเป็นพิเศษ ยิ้มแย้ม เปิดใจรับข้อเสนอ",
+        "effect": "ต่อรองง่าย พร้อมรับฟังราคาที่สมเหตุสมผล"
+    },
+    {
+        "id": "calm",
+        "name": "สุขุมใจเย็น",
+        "icon": "fas fa-smile",
+        "color": "#06b6d4",
+        "desc": "อารมณ์คงที่ มีสติสุขุม พูดคุยด้วยเหตุผล",
+        "effect": "ใช้ตัวเลขและราคาที่สมเหตุสมผลในการเจรจา"
+    },
+    {
+        "id": "rushed",
+        "name": "รีบร้อนกระวนกระวาย",
+        "icon": "fas fa-stopwatch",
+        "color": "#f59e0b",
+        "desc": "มีธุระด่วน ไม่อยากเสียเวลาเจรจานาน",
+        "effect": "รีบยื่นข้อเสนอที่กระชับ ระวังอย่าดึงเกมนานเกินไป"
+    },
+    {
+        "id": "suspicious",
+        "name": "ช่างสงสัย/ระแวง",
+        "icon": "fas fa-eye",
+        "color": "#8b5cf6",
+        "desc": "ขี้ระแวง จับตาดูทุกคำพูด ตรวจตราสินค้าละเอียด",
+        "effect": "อย่าโกหกหรือตั้งราคาเกินจริง มีโอกาสตรวจของสูง"
+    },
+    {
+        "id": "irritated",
+        "name": "หงุดหงิดพร้อมเหวี่ยง",
+        "icon": "fas fa-angry",
+        "color": "#ef4444",
+        "desc": "อารมณ์บูด หงุดหงิดง่าย พร้อมยกเลิกดีลทันที",
+        "effect": "อย่ากดราคาหรือตั้งราคาสูงเกินไป ไม่งั้นจะเดินหนีทันที"
+    }
+]
+
+COLLECTOR_TYPES = [
+    {
+        "id": "diehard",
+        "name": "นักสะสมพันธุ์แท้",
+        "icon": "fas fa-gem",
+        "color": "#ec4899",
+        "desc": "หลงใหลในของสะสม หายากแค่ไหนก็ยอมทุ่มไม่อั้น!",
+        "effect": "ยอมจ่ายราคาสูงพรีเมียม (120-150%) สำหรับของแท้สภาพดี"
+    },
+    {
+        "id": "merchant",
+        "name": "พ่อค้าคนกลาง",
+        "icon": "fas fa-hand-holding-usd",
+        "color": "#f59e0b",
+        "desc": "ซื้อไปขายต่อเก็งกำไร กดราคาต่ำสุดๆ",
+        "effect": "ยากที่จะฟันกำไรสูง ต้องตั้งราคาในเกณฑ์แข่งขันได้"
+    },
+    {
+        "id": "casual",
+        "name": "นักสะสมมือสมัครเล่น",
+        "icon": "fas fa-heart",
+        "color": "#3b82f6",
+        "desc": "ซื้อเพราะความชอบส่วนตัว ดูของไม่ขาดมากนัก",
+        "effect": "โน้มน้าวง่าย หากพูดชมหรือสินค้าสภาพสวยงาม"
+    },
+    {
+        "id": "bargain_hunter",
+        "name": "นักล่าของถูก",
+        "icon": "fas fa-tags",
+        "color": "#14b8a6",
+        "desc": "มองหาเฉพาะของราคาต่ำกว่าท้องตลาด ไม่ชอบของแพง",
+        "effect": "เน้นเสนอส่วนลดหรือขายของชำรุด/ราคาประหยัด"
+    },
+    {
+        "id": "general_user",
+        "name": "ผู้ใช้งานทั่วไป",
+        "icon": "fas fa-user-check",
+        "color": "#64748b",
+        "desc": "ซื้อไปใช้งานจริง ไม่ได้สะสม เน้นคุ้มค่าสมราคา",
+        "effect": "ซื้อตามราคาตลาดมาตรฐาน ไม่ยอมจ่ายเกินมูลค่าจริง"
+    }
+]
+
+PATIENCE_LEVELS = [
+    {
+        "id": "very_patient",
+        "name": "ใจเย็นดั่งสายน้ำ",
+        "icon": "fas fa-shield-heart",
+        "color": "#10b981",
+        "desc": "ใจเย็นมาก ต่อรองได้หลายยก ไม่หัวร้อนง่าย",
+        "effect": "สามารถดึงเกมต่อราคาแบบทีละนิดเพื่อบีบราคาเป้าหมายได้"
+    },
+    {
+        "id": "patient",
+        "name": "ใจเย็นปานกลาง",
+        "icon": "fas fa-hourglass-half",
+        "color": "#06b6d4",
+        "desc": "พร้อมเจรจา 2-3 รอบ หากข้อเสนอค่อยๆ ขยับเข้าหากัน",
+        "effect": "ขยับราคาเข้าหากันทีละขั้น ดีลจะลุล่วงอย่างราบรื่น"
+    },
+    {
+        "id": "impatient",
+        "name": "ค่อนข้างใจร้อน",
+        "icon": "fas fa-fire-alt",
+        "color": "#f97316",
+        "desc": "ไม่ชอบการต่อรองยืดเยื้อ ถ้าไม่เข้าเป้าจะเริ่มบ่น",
+        "effect": "อย่าเสนอลด/เพิ่มทีละน้อยจนน่ารำคาญ รีบเข้าสู่ราคาจริง"
+    },
+    {
+        "id": "hot_tempered",
+        "name": "ใจร้อนสุดขีด",
+        "icon": "fas fa-bomb",
+        "color": "#ef4444",
+        "desc": "ความอดทนต่ำมาก ถ้าราคาต่างกันเกินไปจะล้มโต๊ะหนีทันที",
+        "effect": "ระวัง! หากเสนอราคาห่างไกลจากเป้าหมาย ดีลจะล่มทันที"
+    }
+]
+
+EXPERTISE_LEVELS = [
+    {
+        "id": "master",
+        "name": "เซียนตัวยง (ตาเหยี่ยว)",
+        "icon": "fas fa-crown",
+        "color": "#8b5cf6",
+        "desc": "รู้มูลค่าจริงเป๊ะๆ ตรวจของปลอมออกแทบ 100% หลอกไม่ได้",
+        "effect": "อย่าพยายามขายของปลอมหรือตั้งราคาโก่งเวอร์ จะโดนจับได้"
+    },
+    {
+        "id": "knowledgeable",
+        "name": "ตาถึง / มีความรู้ดี",
+        "icon": "fas fa-glasses",
+        "color": "#3b82f6",
+        "desc": "พอรู้ราคาตลาดและจุดสังเกตสำคัญ ต่อรองอย่างมีชั้นเชิง",
+        "effect": "รู้แกวการตั้งราคา ให้ใช้กลยุทธ์ราคาสมดุล"
+    },
+    {
+        "id": "average",
+        "name": "ความรู้ระดับทั่วไป",
+        "icon": "fas fa-search",
+        "color": "#14b8a6",
+        "desc": "รู้ราคาคร่าวๆ แต่อาจไม่ชำนาญการประเมินสภาพที่แท้จริง",
+        "effect": "สามารถใช้สภาพสินค้าเป็นข้ออ้างในการต่อรองราคาได้"
+    },
+    {
+        "id": "clueless",
+        "name": "มือใหม่ไร้เดียงสา",
+        "icon": "fas fa-question-circle",
+        "color": "#10b981",
+        "desc": "ไม่รู้ราคาตลาด โดนโน้มน้าวง่าย คล้อยตามคำพูดได้ดี",
+        "effect": "โอกาสทอง! สามารถกดราคาซื้อหรือเสนอขายแพงได้ง่ายมาก"
+    },
+    {
+        "id": "ruthless",
+        "name": "เขี้ยวลากดิน",
+        "icon": "fas fa-skull-crossbones",
+        "color": "#dc2626",
+        "desc": "เคี่ยวจัด ไม่ยอมเสียเปรียบแม้แต่สลึงเดียว สู้ราคายาก",
+        "effect": "อย่าคาดหวังกำไรหนา พยายามยอมรับกำไรบางๆ เพื่อปิดดีล"
+    }
+]
+
+CUSTOMER_NAMES_MALE = [
+    "คุณสมศักดิ์", "คุณธีรเดช", "คุณธนินท์", "คุณกฤษฎา", "คุณภาคิน",
+    "คุณอานนท์", "คุณวีรชัย", "คุณณัฐพล", "คุณชัชวาล", "คุณวรภพ"
+]
+CUSTOMER_NAMES_FEMALE = [
+    "คุณวิภาดา", "คุณณดา", "คุณพิชญา", "คุณวรัญญา", "คุณเกสร",
+    "คุณมนัสนันท์", "คุณชิดชนก", "คุณพิมมาดา", "คุณอรอนงค์", "คุณศิริพร"
+]
+
+def generate_customer_profile(gender):
+    is_female = "หญิง" in str(gender)
+    name = random.choice(CUSTOMER_NAMES_FEMALE if is_female else CUSTOMER_NAMES_MALE)
+    mood = random.choice(CUSTOMER_MOODS)
+    collector = random.choice(COLLECTOR_TYPES)
+    patience = random.choice(PATIENCE_LEVELS)
+    expertise = random.choice(EXPERTISE_LEVELS)
+
+    tips = []
+    if collector["id"] == "diehard":
+        tips.append("ยอมจ่ายราคาสูงถ้าของสวยแท้ สามารถดันราคาขายขึ้นได้")
+    elif collector["id"] == "merchant":
+        tips.append("พ่อค้าคนกลางจะกดราคาหนัก ควรตั้งเป้ากำไรพอประมาณ")
+    elif collector["id"] == "bargain_hunter":
+        tips.append("เน้นราคาประหยัด อย่าเสนอราคาสูงเกินไป")
+
+    if patience["id"] in ("hot_tempered", "impatient"):
+        tips.append("ใจร้อนมาก! อย่าต่อรองหลายรอบหรือเสนอราคาห่างไกลเกินไป")
+    elif patience["id"] == "very_patient":
+        tips.append("ใจเย็นมาก ค่อยๆ ตะล่อมต่อรองทีละสเต็ปเพื่อทำกำไรสูงสุด")
+
+    if expertise["id"] == "clueless":
+        tips.append("ไม่ค่อยรู้ราคาตลาด คุณกุมความได้เปรียบในการต่อรอง!")
+    elif expertise["id"] in ("master", "ruthless"):
+        tips.append("เชี่ยวชาญ/เคี่ยวจัด อย่าพยายามเอาเปรียบหรือขายของปลอม")
+
+    if not tips:
+        tips.append("เจรจาตามกลไกราคาตลาด ค่อยๆ ขยับราคาเข้าหากัน")
+
+    tactical_tip = " • ".join(tips)
+
+    return {
+        "name": name,
+        "gender": "หญิง" if is_female else "ชาย",
+        "mood": mood,
+        "collector": collector,
+        "patience": patience,
+        "expertise": expertise,
+        "tactical_tip": tactical_tip
+    }
+
 SELLER_PERSONAS = [
     "คุณเป็นคนร้อนเงินมากๆ รีบใช้เงินสุดๆ ยอมลดราคาให้เยอะขอแค่ได้เงินสดกลับไป",
     "คุณเป็นคนเขี้ยวลากดิน ต่อราคายากมาก รู้มูลค่าของจริงทุกบาททุกสตางค์",
@@ -894,25 +1123,40 @@ def end_day():
         new_rep += rep_buff
         event_logs.append(f"📢 นักโฆษณา (Lv.{ad_level}) ช่วยโปรโมทร้าน ได้ชื่อเสียงเพิ่ม +{rep_buff}")
 
-    # Repairman passive buff
+    # Repairman passive buff (ซ่อมแซมสินค้าที่สภาพไม่สมบูรณ์ หรือพัง ในคลัง)
     if r_level > 0:
         all_inv = db.get_inventory(pin)
-        broken_items = [it for it in all_inv if str(it.get("name", "")).startswith("[พัง] ")]
+        repair_candidates = [
+            it for it in all_inv 
+            if (it.get("condition") is not None and it.get("condition", 100) < 100) or str(it.get("name", "")).startswith("[พัง] ")
+        ]
 
         items_to_fix = 0
-        if r_level == 1 and random.random() > 0.5: items_to_fix = 1
-        elif r_level == 2: items_to_fix = 1
+        if r_level == 1 and random.random() > 0.4: items_to_fix = 1
+        elif r_level == 2: items_to_fix = 2
         elif r_level == 3: items_to_fix = 999
 
         fixed_count = 0
-        for b_item in broken_items[:items_to_fix]:
-            new_name = b_item["name"].replace("[พัง] ", "", 1)
-            new_val = int(b_item["value"] / 0.3)
-            db.update_inventory_item(b_item["id"], name=new_name, value=new_val, true_value=new_val)
-            fixed_count += 1
+        for b_item in repair_candidates[:items_to_fix]:
+            old_cond = int(b_item.get("condition") if b_item.get("condition") is not None else 50)
+            old_name = b_item.get("name", "")
+            new_name = old_name.replace("[พัง] ", "", 1)
+            old_val = b_item.get("value", 1000)
 
-        if fixed_count > 0:
-            event_logs.append(f"🔧 ช่างซ่อม (Lv.{r_level}) แอบซ่อมของพังให้คุณไป {fixed_count} ชิ้นเมื่อคืนนี้!")
+            # ช่างซ่อมฟื้นฟูสภาพเป็น 100% ใหม่กริบ
+            new_cond = 100
+            cond_info = get_condition_info(old_cond)
+            mult = cond_info["multiplier"] if cond_info["multiplier"] > 0 else 0.5
+            new_val = int(old_val / mult)
+            if str(old_name).startswith("[พัง] "):
+                new_val = max(new_val, int(old_val / 0.3))
+
+            db.update_inventory_item(b_item["id"], name=new_name, value=new_val, true_value=new_val, condition=new_cond)
+            fixed_count += 1
+            event_logs.append(f"🔧 ช่างซ่อม (Lv.{r_level}) ซ่อมแซม '{new_name}' จากสภาพ {old_cond}% สู่ 100% (ใหม่กริบ)! มูลค่าฟื้นฟูเป็น ฿{new_val:,}")
+
+        if fixed_count == 0 and repair_candidates and r_level == 1:
+            event_logs.append(f"🔧 ช่างซ่อม (Lv.1) กำลังจัดเตรียมอะไหล่ ยังซ่อมของไม่เสร็จในคืนนี้")
 
     # Expert Appraiser passive buff
     if expert_level >= 3:
@@ -1258,6 +1502,64 @@ def upgrade_staff():
 
     return jsonify({"status": "ok", "message": f"อัปเกรดสำเร็จเป็นระดับ {current_lvl + 1} ดาว!", "save": build_save(pin)})
 
+@app.route("/api/repair_item", methods=["POST"])
+def repair_item():
+    data = req_json()
+    pin = data.get("pin")
+    item_id = data.get("item_id")
+
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+
+    inventory = db.get_inventory(pin)
+    item = next((it for it in inventory if it["id"] == item_id), None)
+    if not item:
+        return jsonify({"status": "error", "message": "ไม่พบสินค้าชิ้นนี้ในคลัง"})
+
+    current_cond = int(item.get("condition") if item.get("condition") is not None else 100)
+    is_broken = str(item.get("name", "")).startswith("[พัง] ")
+    if current_cond >= 100 and not is_broken:
+        return jsonify({"status": "error", "message": "สินค้านี้อยู่ในสภาพสมบูรณ์ 100% อยู่แล้ว ไม่ต้องซ่อมแซม"})
+
+    staff_data = get_staff_data(shop)
+    levels = sync_staff_levels(staff_data.get("hired", []))
+    r_level = levels["repair_level"]
+
+    # ค่าซ่อมแซม:
+    # ช่าง Lv.3 = ฟรี ฿0
+    # ช่าง Lv.2 = ฿300
+    # ช่าง Lv.1 = ฿800
+    # ไม่มีช่าง = ส่งร้านนอก ฿2,000
+    costs = {3: 0, 2: 300, 1: 800, 0: 2000}
+    cost = costs.get(r_level, 2000)
+
+    if shop["money"] < cost:
+        return jsonify({"status": "error", "message": f"เงินไม่พอสำหรับค่าซ่อม (ต้องการ ฿{cost:,})"})
+
+    new_money = shop["money"] - cost
+    old_name = item["name"]
+    new_name = old_name.replace("[พัง] ", "", 1)
+    old_val = item.get("value", 1000)
+    cond_info = get_condition_info(current_cond)
+    mult = cond_info["multiplier"] if cond_info["multiplier"] > 0 else 0.5
+    new_val = int(old_val / mult)
+    if is_broken:
+        new_val = max(new_val, int(old_val / 0.3))
+
+    db.update_shop(pin, money=new_money)
+    db.update_inventory_item(item_id, name=new_name, value=new_val, true_value=new_val, condition=100)
+    bump_version(pin)
+
+    return jsonify({
+        "status": "ok",
+        "message": f"ซ่อมแซม '{new_name}' เรียบร้อยแล้ว! สภาพฟื้นฟูเป็น 100% ใหม่กริบ (มูลค่าเพิ่มเป็น ฿{new_val:,})",
+        "new_money": new_money,
+        "cost": cost,
+        "inventory": db.get_inventory(pin),
+        "save": build_save(pin)
+    })
+
 def load_session(pin, token):
     """ดึงสถานะลูกค้าคนปัจจุบัน: จาก token ของ Client ก่อน (ทนต่อการรีสตาร์ท/หลาย instance) แล้วค่อย cache"""
     game = read_token(token)
@@ -1302,11 +1604,22 @@ def new_customer():
     avatar_data = random.choice(AVATARS)
     avatar = avatar_data["url"]
     gender = avatar_data["gender"]
+    customer = generate_customer_profile(gender)
 
-    # สุ่มว่าจะเป็นคนมาขายของ หรือมาซื้อของ (ถ้าไม่มีของในคลัง ต้องเป็นคนมาขายเท่านั้น)
+    # สลับและรักษาสมดุลระหว่างคนมาขายของ (sell) กับคนมาซื้อของ (buy) ให้เท่าๆ กัน 50:50
+    last_trans = data.get("last_type") or current_games.get(f"{pin}_last_trans")
     is_buyer = False
-    if len(inventory) > 0 and random.random() > 0.5:
-        is_buyer = True
+    if len(inventory) > 0:
+        if last_trans == "buy":
+            # คนก่อนหน้ามาขอซื้อของไปแล้ว -> สลับให้คนถัดไปเอาของมาขายให้ร้าน (โอกาส 80% เป็นคนมาขาย)
+            is_buyer = (random.random() < 0.20)
+        elif last_trans == "sell":
+            # คนก่อนหน้ามาขายของให้ร้าน -> สลับให้คนถัดไปมาขอซื้อของในร้าน (โอกาส 80% เป็นคนมาซื้อ)
+            is_buyer = (random.random() < 0.80)
+        else:
+            is_buyer = (random.random() < 0.50)
+
+    current_games[f"{pin}_last_trans"] = "buy" if is_buyer else "sell"
 
     if is_buyer:
         game["transaction_type"] = "buy"
@@ -1330,20 +1643,31 @@ def new_customer():
         else:
             max_price = int(base_price_for_buyer * 1.1)
 
+        item_cond = int(item.get("condition") if item.get("condition") is not None else 100)
+        cond_info = get_condition_info(item_cond)
+        item["condition"] = item_cond
+        item["condition_name"] = cond_info["name"]
+        item["condition_color"] = cond_info["color"]
+        item["condition_pct"] = item_cond
+
         game["item"] = item
         game["value"] = item["value"]
         game["true_value"] = base_price_for_buyer
         game["max_price"] = max_price
         game["gender"] = gender
+        game["customer"] = customer
         game["persona_desc"] = persona
         game["is_fake"] = bool(item.get("true_value", item["value"]) < item["value"])
         game["last_bot_price"] = 0
 
         system_prompt = f"""คุณกำลังเล่นเกม Roleplay: คุณคือลูกค้าที่เดินเข้ามาในร้านขายของมือสองเพื่อ 'ขอซื้อของ'
-เพศของคุณ: {gender} (ต้องใช้สรรพนามและคำลงท้ายให้ตรงกับเพศ เช่น ชาย=ผม/ครับ หญิง=ฉัน/หนู/ค่ะ/คะ)
-ของที่คุณสนใจจะซื้อคือ: {item['name']} (ราคากลางประมาณ: {item['value']} บาท)
+ชื่อของคุณ: {customer['name']} | เพศของคุณ: {gender}
+อารมณ์: {customer['mood']['name']} ({customer['mood']['desc']})
+ประเภทนักสะสม: {customer['collector']['name']} ({customer['collector']['desc']})
+ความอดทน: {customer['patience']['name']} ({customer['patience']['desc']})
+ความเชี่ยวชาญ: {customer['expertise']['name']} ({customer['expertise']['desc']})
+ของที่คุณสนใจจะซื้อคือ: {item['name']} (สภาพ: {cond_info['name']})
 ราคาสูงสุดที่คุณยอมจ่ายคือ: {max_price} บาท (ห้ามบอกตัวเลขนี้ให้เจ้าของร้านรู้เด็ดขาด!)
-ลักษณะนิสัยของคุณ: {persona}
 
 กฎการตอบ:
 1. เล่นตามนิสัยอย่างเคร่งครัด พยายามต่อราคาให้ถูกที่สุดก่อน
@@ -1361,7 +1685,32 @@ def new_customer():
         is_fake = random.random() < 0.25 # โอกาส 25% เป็นของปลอม
         is_broken = random.random() < 0.20 # โอกาส 20% ของพัง
 
-        if is_fake:
+        if is_broken:
+            condition = random.randint(15, 35)
+        else:
+            condition = random.choices(
+                [random.randint(95, 100), random.randint(80, 94), random.randint(65, 79), random.randint(45, 64)],
+                weights=[40, 30, 20, 10]
+            )[0]
+
+        cond_info = get_condition_info(condition)
+        item["condition"] = condition
+        item["condition_name"] = cond_info["name"]
+        item["condition_color"] = cond_info["color"]
+        item["condition_pct"] = condition
+        item["original_value"] = item["value"]
+
+        if condition < 95:
+            item["value"] = int(item["value"] * cond_info["multiplier"])
+
+        if is_broken:
+            item["name"] = f"[พัง] {item['name']}"
+            item["value"] = int(item["value"] * 0.4)
+            true_value = item["value"]
+            persona = random.choice(SELLER_PERSONAS)
+            persona_desc = persona
+            min_price = int(item["value"] * 0.5)
+        elif is_fake:
             true_value = int(item["value"] * 0.1) # มูลค่าจริงเหลือแค่ 10%
             min_price = int(true_value * 0.5) # ยอมขายถูกมากเพราะรู้ว่าเป็นของปลอม
             persona_desc = "คุณเป็นมิจฉาชีพที่นำของ 'ปลอม' มาหลอกขายให้เนียนที่สุด ห้ามให้เจ้าของร้านรู้เด็ดขาด พยายามหลอกล่อให้เขาซื้อในราคาสูง"
@@ -1369,11 +1718,6 @@ def new_customer():
             true_value = item["value"]
             persona = random.choice(SELLER_PERSONAS)
             persona_desc = persona
-
-            if is_broken:
-                item["name"] = f"[พัง] {item['name']}"
-                item["value"] = int(item["value"] * 0.3)
-                true_value = item["value"]
 
             if "ร้อนเงิน" in persona or "ซื่อๆ" in persona:
                 min_price = int(item["value"] * 0.4)
@@ -1389,13 +1733,18 @@ def new_customer():
         game["is_fake"] = is_fake
         game["appraised"] = False
         game["gender"] = gender
+        game["customer"] = customer
         game["persona_desc"] = persona_desc
         game["last_bot_price"] = 0
 
         system_prompt = f"""คุณกำลังเล่นเกม Roleplay: คุณคือลูกค้าที่นำของมา 'ขายให้' โรงรับจำนำ
-เพศของคุณ: {gender} (ต้องใช้สรรพนามและคำลงท้ายให้ตรงกับเพศ เช่น ชาย=ผม/ครับ หญิง=ฉัน/หนู/ค่ะ/คะ)
-ของที่คุณนำมาขายคือ: {item['name']}
-ลักษณะนิสัยของคุณ: {persona_desc}
+ชื่อของคุณ: {customer['name']} | เพศของคุณ: {gender}
+อารมณ์: {customer['mood']['name']} ({customer['mood']['desc']})
+ประเภทนักสะสม: {customer['collector']['name']} ({customer['collector']['desc']})
+ความอดทน: {customer['patience']['name']} ({customer['patience']['desc']})
+ความเชี่ยวชาญ: {customer['expertise']['name']} ({customer['expertise']['desc']})
+ของที่คุณนำมาขายคือ: {item['name']} (สภาพ: {cond_info['name']})
+ลักษณะนิสัย: {persona_desc}
 ราคาต่ำสุดที่คุณยอมรับได้คือ: {min_price} บาท (ห้ามบอกให้เจ้าของร้านรู้!)
 
 กฎการตอบ:
@@ -1443,8 +1792,9 @@ def new_customer():
     return jsonify({
         "status": "ok",
         "type": game["transaction_type"],
-        "item": {k: item.get(k) for k in ("name", "value", "image", "bought_price")},
+        "item": {k: item.get(k) for k in ("name", "value", "image", "bought_price", "condition", "condition_name", "condition_color", "condition_pct", "original_value")},
         "avatar": avatar,
+        "customer": customer,
         "message": clean_resp,
         "bot_price": game.get("last_bot_price") or 0,
         "fallback": is_fallback,
@@ -1562,10 +1912,11 @@ def chat():
                        loan_remaining=new_total_debt, loan_daily=new_daily,
                        loan_days_left=installments, loan_principal=new_principal,
                        active_customer=None)
-        db.add_inventory_item(pin, name=item["name"], value=game["value"], true_value=game["true_value"], bought_price=agreed_price, image=item["image"])
+        db.add_inventory_item(pin, name=item["name"], value=game["value"], true_value=game["true_value"], bought_price=agreed_price, image=item["image"], condition=item.get("condition", 100))
         bump_version(pin)
         current_games.pop(pin, None)
 
+        cond_info = get_condition_info(item.get("condition", 100))
         return jsonify({
             "status": "ok",
             "accepted": True,
@@ -1582,7 +1933,14 @@ def chat():
                 "daily_payment": new_daily,
                 "days_left": installments
             },
-            "item": {k: item.get(k) for k in ("name", "value", "image")},
+            "item": {
+                "name": item.get("name"),
+                "value": item.get("value"),
+                "image": item.get("image"),
+                "condition": item.get("condition", 100),
+                "condition_name": cond_info["name"],
+                "condition_color": cond_info["color"]
+            },
             "save": build_save(pin)
         })
 
@@ -1691,9 +2049,17 @@ def chat():
                 return jsonify(result)
             else:
                 db.update_shop(pin, money=shop["money"] - agreed_price, reputation=(shop.get("reputation") or 10) + 1)
-                db.add_inventory_item(pin, name=item["name"], value=game["value"], true_value=game["true_value"], bought_price=agreed_price, image=item["image"])
+                db.add_inventory_item(pin, name=item["name"], value=game["value"], true_value=game["true_value"], bought_price=agreed_price, image=item["image"], condition=item.get("condition", 100))
                 result["accepted"] = True
-                result["item"] = {k: item.get(k) for k in ("name", "value", "image")}
+                cond_info = get_condition_info(item.get("condition", 100))
+                result["item"] = {
+                    "name": item.get("name"),
+                    "value": item.get("value"),
+                    "image": item.get("image"),
+                    "condition": item.get("condition", 100),
+                    "condition_name": cond_info["name"],
+                    "condition_color": cond_info["color"]
+                }
         else:
             # ลูกค้ามาซื้อของจากเรา (Shop selling item to customer)
             is_fake_item = bool(game.get("is_fake") or (item.get("true_value", item["value"]) < item["value"]))

@@ -197,24 +197,124 @@
             width: 140px;
             height: 140px;
             border-radius: 50%;
-            overflow: hidden;
+            overflow: visible;
             border: 4px solid var(--panel-border);
-            margin-bottom: 15px;
+            margin-bottom: 22px;
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-            transition: transform 0.3s ease, border-color 0.3s;
+            transition: transform 0.3s ease, border-color 0.3s, box-shadow 0.3s;
             flex-shrink: 0;
+            cursor: pointer;
+            position: relative;
         }
 
-        @media (hover: hover) {
-            .customer-area:hover .avatar-container {
-                transform: scale(1.05);
-            }
+        .avatar-container:hover {
+            transform: scale(1.05);
+            border-color: #38bdf8;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+
+        .avatar-img-box {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            overflow: hidden;
         }
 
         .avatar-container img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+        }
+
+        .customer-profile-pill {
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid #38bdf8;
+            color: #38bdf8;
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 12px;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            pointer-events: none;
+            animation: pulseHint 2s infinite;
+        }
+        @keyframes pulseHint {
+            0%, 100% { box-shadow: 0 0 6px rgba(56, 189, 248, 0.4); }
+            50% { box-shadow: 0 0 14px rgba(56, 189, 248, 0.85); transform: translateX(-50%) scale(1.03); }
+        }
+
+        .condition-meter-container {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+            margin-top: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .condition-meter-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.4s ease;
+        }
+        .inv-cond-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.72rem;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .badge-mint { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-excellent { background: rgba(6, 182, 212, 0.18); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.4); }
+        .badge-good { background: rgba(59, 130, 246, 0.18); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+        .badge-fair { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .badge-damaged { background: rgba(249, 115, 22, 0.18); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.4); }
+        .badge-broken { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+        .inv-repair-btn {
+            background: rgba(234, 179, 8, 0.18);
+            color: #fbbf24;
+            border: 1px solid rgba(234, 179, 8, 0.4);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 500;
+        }
+        .inv-repair-btn:hover {
+            background: rgba(234, 179, 8, 0.35);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .customer-trait-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+        .customer-trait-card:hover {
+            background: rgba(15, 23, 42, 0.95);
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
         }
 
         .item-card {
@@ -950,8 +1050,11 @@
             <div class="customer-area">
                 <div id="role-badge" class="role-badge" style="margin-bottom: 10px; padding: 4px 10px; font-size: 0.85rem;">สถานะ</div>
                 
-                <div class="avatar-container" id="avatar-container" style="display: none;">
-                    <img id="customer-avatar" src="" alt="Customer">
+                <div class="avatar-container" id="avatar-container" style="display: none;" onclick="openCustomerProfileModal()" title="คลิกดูข้อมูลลูกค้า">
+                    <div class="avatar-img-box">
+                        <img id="customer-avatar" src="" alt="Customer">
+                    </div>
+                    <div class="customer-profile-pill"><i class="fas fa-id-card"></i> ข้อมูลลูกค้า</div>
                 </div>
                 
                 <div class="item-card" id="item-card" style="display: none; width: 100%; margin-bottom: auto; cursor: pointer; position: relative;" onclick="toggleItemDetails()">
@@ -960,14 +1063,24 @@
                         <i id="item-icon" class="" style="display: none; font-size: 60px; color: #EAB308;"></i>
                     </div>
                     
-                    <div id="item-details-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); flex-direction: column; justify-content: center; align-items: center; padding: 15px; text-align: center;">
+                    <div id="item-details-overlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); flex-direction: column; justify-content: center; align-items: center; padding: 15px; text-align: center;">
                         <div id="item-action-text" style="font-size: 0.9rem; color: var(--accent-color); margin-bottom: 5px;">กำลังเสนอขาย</div>
-                        <div class="item-name" id="item-name" style="font-size: 1.1rem; margin-bottom: 5px; color: white; font-weight: bold;">-</div>
+                        <div class="item-name" id="item-name" style="font-size: 1.1rem; margin-bottom: 4px; color: white; font-weight: bold;">-</div>
                         <div class="item-value" id="item-value" style="font-size: 0.95rem; color: #cbd5e1;">-</div>
+                        <div id="item-condition-box" style="margin-top: 8px; width: 90%; max-width: 220px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.78rem;">
+                                <span style="color: var(--muted-text);">สภาพสินค้า:</span>
+                                <b id="item-condition-text" style="color: #34d399;">100% (ใหม่กริบ)</b>
+                            </div>
+                            <div class="condition-meter-container">
+                                <div class="condition-meter-fill" id="item-condition-fill" style="width: 100%; background: #10b981;"></div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div style="padding: 10px; font-size: 0.85rem; color: var(--muted-text); border-top: 1px solid rgba(255,255,255,0.1);">
-                        <i class="fas fa-hand-pointer"></i> กดที่ภาพเพื่อดูข้อมูล
+                    <div style="padding: 8px 10px; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                        <span id="card-cond-badge" class="inv-cond-badge badge-mint"><i class="fas fa-shield-alt"></i> สภาพ 100%</span>
+                        <span style="color: var(--muted-text); font-size: 0.75rem;"><i class="fas fa-hand-pointer"></i> แตะดูข้อมูล</span>
                     </div>
                 </div>
 
@@ -1248,6 +1361,94 @@
         </div>
     </div>
 
+    <!-- Customer Profile / Trait Inspection Modal -->
+    <div class="modal-overlay" id="customer-modal-overlay" style="z-index: 10000; display: none;">
+        <div class="modal" style="max-width: 540px; text-align: left; padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 52px; height: 52px; border-radius: 50%; overflow: hidden; border: 2px solid var(--accent-color); box-shadow: 0 0 10px rgba(234, 179, 8, 0.4); flex-shrink: 0;">
+                        <img id="customer-modal-avatar" src="" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div>
+                        <h3 id="customer-modal-name" style="margin: 0; font-size: 1.25rem; color: white;">คุณลูกค้า</h3>
+                        <div style="display: flex; gap: 6px; align-items: center; margin-top: 4px;">
+                            <span id="customer-modal-gender" style="font-size: 0.75rem; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; color: var(--muted-text);">เพศ</span>
+                            <span id="customer-modal-action-badge" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;" class="role-badge role-sell">เสนอขาย</span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="closeCustomerProfileModal()" style="background: transparent; color: var(--muted-text); border: none; font-size: 1.5rem; cursor: pointer; padding: 4px;"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div style="margin-bottom: 14px;">
+                <div style="font-size: 0.85rem; color: var(--muted-text); margin-bottom: 8px;">
+                    <i class="fas fa-brain" style="color: #38bdf8;"></i> ข้อมูลจิตวิทยาลูกค้า (สำหรับพิจารณาต่อรองราคา):
+                </div>
+                
+                <!-- 4 Traits Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <!-- Trait 1: Mood (อารมณ์) -->
+                    <div class="customer-trait-card" id="trait-card-mood">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <i id="trait-icon-mood" class="fas fa-smile" style="font-size: 1.1rem; color: #10b981;"></i>
+                            <span style="font-size: 0.8rem; color: var(--muted-text); font-weight: bold;">1. อารมณ์</span>
+                        </div>
+                        <div id="trait-name-mood" style="font-weight: bold; font-size: 0.95rem; color: white; margin-bottom: 2px;">ปกติสุขุม</div>
+                        <div id="trait-desc-mood" style="font-size: 0.75rem; color: #cbd5e1; line-height: 1.3;">อารมณ์ปกติ มีสติดี พูดคุยด้วยเหตุผล</div>
+                        <div id="trait-effect-mood" style="font-size: 0.7rem; color: #38bdf8; margin-top: 4px; font-weight: 500;">✓ ต่อรองง่าย พร้อมรับฟัง</div>
+                    </div>
+
+                    <!-- Trait 2: Collector Type (นักสะสม) -->
+                    <div class="customer-trait-card" id="trait-card-collector">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <i id="trait-icon-collector" class="fas fa-gem" style="font-size: 1.1rem; color: #ec4899;"></i>
+                            <span style="font-size: 0.8rem; color: var(--muted-text); font-weight: bold;">2. ประเภทนักสะสม</span>
+                        </div>
+                        <div id="trait-name-collector" style="font-weight: bold; font-size: 0.95rem; color: white; margin-bottom: 2px;">นักสะสมพันธุ์แท้</div>
+                        <div id="trait-desc-collector" style="font-size: 0.75rem; color: #cbd5e1; line-height: 1.3;">หลงใหลในของสะสม ยอมทุ่มไม่อั้น</div>
+                        <div id="trait-effect-collector" style="font-size: 0.7rem; color: #ec4899; margin-top: 4px; font-weight: 500;">✓ ยอมจ่ายราคาสูงพรีเมียม</div>
+                    </div>
+
+                    <!-- Trait 3: Patience (ความใจเย็น/ใจร้อน) -->
+                    <div class="customer-trait-card" id="trait-card-patience">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <i id="trait-icon-patience" class="fas fa-hourglass-half" style="font-size: 1.1rem; color: #06b6d4;"></i>
+                            <span style="font-size: 0.8rem; color: var(--muted-text); font-weight: bold;">3. ความใจเย็น/ใจร้อน</span>
+                        </div>
+                        <div id="trait-name-patience" style="font-weight: bold; font-size: 0.95rem; color: white; margin-bottom: 2px;">ใจเย็นปานกลาง</div>
+                        <div id="trait-desc-patience" style="font-size: 0.75rem; color: #cbd5e1; line-height: 1.3;">พร้อมเจรจา 2-3 รอบ</div>
+                        <div id="trait-effect-patience" style="font-size: 0.7rem; color: #06b6d4; margin-top: 4px; font-weight: 500;">✓ ขยับราคาเข้าหากันทีละขั้น</div>
+                    </div>
+
+                    <!-- Trait 4: Expertise / Greed (ความเชี่ยวชาญ/ความเขี้ยว) -->
+                    <div class="customer-trait-card" id="trait-card-expertise">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <i id="trait-icon-expertise" class="fas fa-glasses" style="font-size: 1.1rem; color: #8b5cf6;"></i>
+                            <span style="font-size: 0.8rem; color: var(--muted-text); font-weight: bold;">4. ความเชี่ยวชาญ/เขี้ยว</span>
+                        </div>
+                        <div id="trait-name-expertise" style="font-weight: bold; font-size: 0.95rem; color: white; margin-bottom: 2px;">ตาถึง / รู้ราคาดี</div>
+                        <div id="trait-desc-expertise" style="font-size: 0.75rem; color: #cbd5e1; line-height: 1.3;">รู้ราคาตลาดดี ต่อรองอย่างมีชั้นเชิง</div>
+                        <div id="trait-effect-expertise" style="font-size: 0.7rem; color: #8b5cf6; margin-top: 4px; font-weight: 500;">✓ รู้แกว ให้ใช้ราคาสมดุล</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tactical Advice Box -->
+            <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 10px; padding: 12px; margin-bottom: 16px;">
+                <div style="color: #fbbf24; font-weight: bold; font-size: 0.85rem; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-lightbulb"></i> กลยุทธ์เจรจาต่อรองแนะนำ:
+                </div>
+                <div id="customer-modal-tip" style="color: #fef08a; font-size: 0.85rem; line-height: 1.4;">
+                    ลูกค้ากระเป๋าหนักและอารมณ์ดี! สามารถเสนอขายในราคาสูงกว่าปกติได้ถึง 120-140%
+                </div>
+            </div>
+
+            <button onclick="closeCustomerProfileModal()" style="width: 100%; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: none; cursor: pointer; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); transition: all 0.2s;">
+                <i class="fas fa-comments"></i> เข้าใจแล้ว พร้อมเจรจาต่อรอง!
+            </button>
+        </div>
+    </div>
+
     <!-- Bankruptcy / Game Over Modal -->
     <div class="modal-overlay" id="bankruptcy-modal-overlay" style="z-index: 20000; display: none;">
         <div class="modal" style="max-width: 480px; text-align: center; border: 2px solid #ef4444; box-shadow: 0 0 35px rgba(239, 68, 68, 0.4);">
@@ -1325,6 +1526,8 @@
         let currentLoanOffer = null;
         let currentStaffData = { hired: [], candidates: [], max_slots: 3, total_wages: 0 };
         let currentExpertLevel = 0;
+        let currentCustomerProfile = null;
+        let currentItemCondition = 100;
         const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
         const chatBox = document.getElementById('chat-box');
@@ -1679,7 +1882,7 @@
             addMessage("กำลังมีลูกค้าเดินเข้ามาในร้าน...", 'system');
 
             try {
-                const data = await api('/api/new_customer');
+                const data = await api('/api/new_customer', { last_type: currentTransType });
                 chatBox.innerHTML = '';
 
                 if (data.status === 'end_of_day') {
@@ -1690,6 +1893,8 @@
                 if (data.status === 'ok' && data.item) {
                     currentTransType = data.type;
                     currentItemValue = data.item.value || 0;
+                    currentCustomerProfile = data.customer || null;
+                    currentItemCondition = (data.item.condition != null) ? data.item.condition : 100;
 
                     const avatarEl = document.getElementById('customer-avatar');
                     avatarEl.onerror = () => { avatarEl.onerror = null; avatarEl.src = FALLBACK_IMG; };
@@ -1699,6 +1904,7 @@
                     setItemImage(data.item.image);
                     document.getElementById('item-name').innerText = data.item.name;
                     document.getElementById('item-value').innerText = `ราคากลาง: ฿${fmt(data.item.value)}`;
+                    updateItemConditionDisplay(currentItemCondition, data.item.condition_name, data.item.condition_color);
                     itemCard.style.display = 'block';
                     roleBadge.style.display = 'inline-block';
 
@@ -1865,6 +2071,7 @@
         function endDeal(success, price = 0, item = null, type = "sell", reason = null, extraFine = 0, repLoss = 0) {
             isChatting = false;
             sessionToken = null;
+            currentCustomerProfile = null;
             setInputState(false);
             if (appraiseBtn) appraiseBtn.disabled = true;
             updateCustomerPriceDisplay(0);
@@ -1927,6 +2134,7 @@
 
             isChatting = false;
             sessionToken = null;
+            currentCustomerProfile = null;
             setInputState(false);
             appraiseBtn.disabled = true;
             updateCustomerPriceDisplay(0);
@@ -1993,11 +2201,27 @@
                     mediaHtml = `<img src="${escapeHtml(item.image || FALLBACK_IMG)}" alt="${escapeHtml(item.name)}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_IMG}'">`;
                 }
 
+                const cond = item.condition != null ? item.condition : 100;
+                const isDamaged = String(item.name || '').startsWith('[พัง] ') || cond < 100;
+
+                let repairBtnHtml = '';
+                if (isDamaged) {
+                    const rLvl = (currentStaffData && currentStaffData.hired) ? 
+                        Math.max(0, ...currentStaffData.hired.filter(s => s.role === 'repair').map(s => s.stars || 0)) : 0;
+                    const fee = rLvl >= 3 ? 0 : (rLvl === 2 ? 300 : (rLvl === 1 ? 800 : 2000));
+                    const feeTxt = fee === 0 ? 'ฟรี ฿0' : `฿${fmt(fee)}`;
+                    repairBtnHtml = `<button class="inv-repair-btn" onclick="repairInventoryItem(${item.id})" title="ซ่อมแซมเพื่อฟื้นฟูสภาพเป็น 100%"><i class="fas fa-tools"></i> ซ่อม (${feeTxt})</button>`;
+                }
+
                 div.innerHTML = `
                     ${mediaHtml}
                     <div class="inv-details">
                         <div class="inv-name">${escapeHtml(item.name)}</div>
                         <div class="inv-price">ทุน: ฿${fmt(item.bought_price)} | มูลค่า: ฿${fmt(item.value)}</div>
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 4px;">
+                            ${renderConditionBadge(cond)}
+                            ${repairBtnHtml}
+                        </div>
                     </div>
                 `;
                 inventoryList.appendChild(div);
@@ -2387,6 +2611,178 @@
 
         function closeRepayModal() {
             document.getElementById('repay-modal-overlay').style.display = 'none';
+        }
+
+        // ===================== CUSTOMER PROFILE & CONDITION SYSTEM =====================
+        function openCustomerProfileModal() {
+            if (!currentCustomerProfile) {
+                customAlert("ยังไม่มีข้อมูลลูกค้าคนปัจจุบัน หรือลูกค้าได้ออกจากร้านไปแล้ว", "ข้อมูลลูกค้า");
+                return;
+            }
+            const c = currentCustomerProfile;
+            const modalAvatar = document.getElementById('customer-modal-avatar');
+            const custAvatar = document.getElementById('customer-avatar');
+            if (modalAvatar && custAvatar) modalAvatar.src = custAvatar.src || FALLBACK_IMG;
+
+            document.getElementById('customer-modal-name').innerText = c.name || "คุณลูกค้า";
+            document.getElementById('customer-modal-gender').innerText = c.gender || "ลูกค้า";
+
+            const badgeEl = document.getElementById('customer-modal-action-badge');
+            if (badgeEl) {
+                if (currentTransType === 'buy') {
+                    badgeEl.innerText = "ขอซื้อของ";
+                    badgeEl.className = "role-badge role-buy";
+                } else {
+                    badgeEl.innerText = "เสนอขายของ";
+                    badgeEl.className = "role-badge role-sell";
+                }
+            }
+
+            // 1. Mood
+            if (c.mood) {
+                document.getElementById('trait-icon-mood').className = c.mood.icon || 'fas fa-smile';
+                document.getElementById('trait-icon-mood').style.color = c.mood.color || '#10b981';
+                document.getElementById('trait-name-mood').innerText = c.mood.name || '-';
+                document.getElementById('trait-desc-mood').innerText = c.mood.desc || '-';
+                document.getElementById('trait-effect-mood').innerText = `✓ ${c.mood.effect || ''}`;
+                document.getElementById('trait-effect-mood').style.color = c.mood.color || '#38bdf8';
+            }
+
+            // 2. Collector
+            if (c.collector) {
+                document.getElementById('trait-icon-collector').className = c.collector.icon || 'fas fa-gem';
+                document.getElementById('trait-icon-collector').style.color = c.collector.color || '#ec4899';
+                document.getElementById('trait-name-collector').innerText = c.collector.name || '-';
+                document.getElementById('trait-desc-collector').innerText = c.collector.desc || '-';
+                document.getElementById('trait-effect-collector').innerText = `✓ ${c.collector.effect || ''}`;
+                document.getElementById('trait-effect-collector').style.color = c.collector.color || '#ec4899';
+            }
+
+            // 3. Patience
+            if (c.patience) {
+                document.getElementById('trait-icon-patience').className = c.patience.icon || 'fas fa-hourglass-half';
+                document.getElementById('trait-icon-patience').style.color = c.patience.color || '#06b6d4';
+                document.getElementById('trait-name-patience').innerText = c.patience.name || '-';
+                document.getElementById('trait-desc-patience').innerText = c.patience.desc || '-';
+                document.getElementById('trait-effect-patience').innerText = `✓ ${c.patience.effect || ''}`;
+                document.getElementById('trait-effect-patience').style.color = c.patience.color || '#06b6d4';
+            }
+
+            // 4. Expertise
+            if (c.expertise) {
+                document.getElementById('trait-icon-expertise').className = c.expertise.icon || 'fas fa-glasses';
+                document.getElementById('trait-icon-expertise').style.color = c.expertise.color || '#8b5cf6';
+                document.getElementById('trait-name-expertise').innerText = c.expertise.name || '-';
+                document.getElementById('trait-desc-expertise').innerText = c.expertise.desc || '-';
+                document.getElementById('trait-effect-expertise').innerText = `✓ ${c.expertise.effect || ''}`;
+                document.getElementById('trait-effect-expertise').style.color = c.expertise.color || '#8b5cf6';
+            }
+
+            // Tactical Tip
+            document.getElementById('customer-modal-tip').innerText = c.tactical_tip || "เจรจาตามราคาตลาดอย่างระมัดระวัง";
+
+            document.getElementById('customer-modal-overlay').style.display = 'flex';
+        }
+
+        function closeCustomerProfileModal() {
+            document.getElementById('customer-modal-overlay').style.display = 'none';
+        }
+
+        function renderConditionBadge(condition) {
+            const pct = Math.max(10, Math.min(100, Number(condition != null ? condition : 100)));
+            let name = "ใหม่กริบ";
+            let cls = "badge-mint";
+            let icon = "fa-check-circle";
+
+            if (pct >= 95) {
+                name = `${pct}% ใหม่กริบ`;
+                cls = "badge-mint";
+                icon = "fa-check-circle";
+            } else if (pct >= 80) {
+                name = `${pct}% ดีเยี่ยม`;
+                cls = "badge-excellent";
+                icon = "fa-star";
+            } else if (pct >= 65) {
+                name = `${pct}% สภาพดี`;
+                cls = "badge-good";
+                icon = "fa-thumbs-up";
+            } else if (pct >= 45) {
+                name = `${pct}% พอใช้`;
+                cls = "badge-fair";
+                icon = "fa-exclamation-circle";
+            } else if (pct >= 25) {
+                name = `${pct}% ชำรุด`;
+                cls = "badge-damaged";
+                icon = "fa-wrench";
+            } else {
+                name = `${pct}% เสียหายหนัก`;
+                cls = "badge-broken";
+                icon = "fa-times-circle";
+            }
+            return `<span class="inv-cond-badge ${cls}"><i class="fas ${icon}"></i> ${name}</span>`;
+        }
+
+        function updateItemConditionDisplay(cond, condName, condColor) {
+            const pct = Math.max(10, Math.min(100, Number(cond != null ? cond : 100)));
+            const textEl = document.getElementById('item-condition-text');
+            const fillEl = document.getElementById('item-condition-fill');
+            const cardBadgeEl = document.getElementById('card-cond-badge');
+
+            let badgeClass = 'badge-mint';
+            let color = condColor || '#10b981';
+            let label = condName || `${pct}% ใหม่กริบ`;
+
+            if (pct >= 95) badgeClass = 'badge-mint';
+            else if (pct >= 80) badgeClass = 'badge-excellent';
+            else if (pct >= 65) badgeClass = 'badge-good';
+            else if (pct >= 45) badgeClass = 'badge-fair';
+            else if (pct >= 25) badgeClass = 'badge-damaged';
+            else badgeClass = 'badge-broken';
+
+            if (textEl) {
+                textEl.innerText = `${pct}% (${label.replace(/\(.*?\)/g, '').trim()})`;
+                textEl.style.color = color;
+            }
+            if (fillEl) {
+                fillEl.style.width = `${pct}%`;
+                fillEl.style.background = color;
+            }
+            if (cardBadgeEl) {
+                cardBadgeEl.className = `inv-cond-badge ${badgeClass}`;
+                cardBadgeEl.innerHTML = `<i class="fas fa-shield-alt"></i> สภาพ ${pct}%`;
+            }
+        }
+
+        async function repairInventoryItem(itemId) {
+            if (!itemId) return;
+            const rLvl = (currentStaffData && currentStaffData.hired) ? 
+                Math.max(0, ...currentStaffData.hired.filter(s => s.role === 'repair').map(s => s.stars || 0)) : 0;
+            const fee = rLvl >= 3 ? 0 : (rLvl === 2 ? 300 : (rLvl === 1 ? 800 : 2000));
+            
+            const confirmMsg = fee === 0 
+                ? "ต้องการให้ช่างซ่อมประจำร้านซ่อมแซมสินค้านี้ฟรี (฿0) ทันทีหรือไม่?"
+                : `ต้องการส่งช่างซ่อมสินค้านี้ทันทีหรือไม่? ค่าซ่อมแซม: ฿${fmt(fee)}`;
+            
+            const ok = await customConfirm(confirmMsg, "ส่งช่างซ่อมสินค้า");
+            if (!ok) return;
+
+            const data = await api('/api/repair_item', { item_id: itemId });
+            if (data.status === 'ok') {
+                playSfx('cash');
+                await customAlert(data.message, "ซ่อมแซมสำเร็จ!");
+                if (typeof data.new_money === 'number') {
+                    money = data.new_money;
+                    updateStats();
+                }
+                if (data.inventory) {
+                    inventory = data.inventory;
+                    renderInventory();
+                } else {
+                    loadGame();
+                }
+            } else {
+                customAlert(data.message || "ไม่สามารถซ่อมแซมสินค้าได้", "ข้อผิดพลาด");
+            }
         }
 
         function setRepayQuick(type) {

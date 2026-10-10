@@ -93,8 +93,13 @@ def init_db():
             value INTEGER,
             true_value INTEGER DEFAULT 0,
             bought_price INTEGER DEFAULT 0,
-            image TEXT
+            image TEXT,
+            condition INTEGER DEFAULT 100
         )''')
+        try:
+            c.execute("ALTER TABLE inventory ADD COLUMN condition INTEGER DEFAULT 100")
+        except Exception:
+            pass
         conn.commit()
     finally:
         conn.close()
@@ -265,69 +270,113 @@ def get_inventory(pin: str):
     """ดึงรายการสินค้าในคลังของร้านค้าตาม PIN"""
     if not pin:
         return []
+    items = []
     sb = get_supabase_client()
     if sb:
         try:
             res = sb.table('inventory').select('*').eq('shop_pin', pin).order('id').execute()
-            return res.data or []
+            items = res.data or []
         except Exception as e:
             print(f"[DB Error Supabase get_inventory] {e}")
 
-    # Fallback to SQLite
+    # Fallback and merge condition with SQLite
     conn = get_sqlite_conn()
     try:
         c = conn.cursor()
         c.execute('SELECT * FROM inventory WHERE shop_pin = ? ORDER BY id', (pin,))
-        return [dict(r) for r in c.fetchall()]
+        sql_rows = [dict(r) for r in c.fetchall()]
+        if not items:
+            items = sql_rows
+        else:
+            sql_cond_map = {r["id"]: r.get("condition") for r in sql_rows if r.get("id") is not None}
+            sql_name_cond_map = {r["name"]: r.get("condition") for r in sql_rows if r.get("name")}
+            for it in items:
+                if "condition" not in it or it.get("condition") is None:
+                    matched_cond = sql_cond_map.get(it.get("id")) or sql_name_cond_map.get(it.get("name"))
+                    if matched_cond is not None:
+                        it["condition"] = matched_cond
+                    else:
+                        it["condition"] = 30 if str(it.get("name", "")).startswith("[พัง] ") else 100
     finally:
         conn.close()
 
-def add_inventory_item(pin: str, name: str, value: int, true_value: int, bought_price: int, image: str):
+    return items
+
+def add_inventory_item(pin: str, name: str, value: int, true_value: int, bought_price: int, image: str, condition: int = 100):
     """เพิ่มสินค้าลงคลัง"""
+    condition = max(10, min(100, int(condition or 100)))
     item_record = {
         "shop_pin": pin,
         "name": name,
         "value": value,
         "true_value": true_value,
         "bought_price": bought_price,
-        "image": image
+        "image": image,
+        "condition": condition
     }
+    inserted_id = None
     sb = get_supabase_client()
     if sb:
         try:
             res = sb.table('inventory').insert(item_record).execute()
             if res.data and len(res.data) > 0:
-                return res.data[0]
-            return item_record
+                item_record = res.data[0]
+                inserted_id = item_record.get("id")
         except Exception as e:
+            err_str = str(e)
+            if "condition" in err_str:
+                try:
+                    clean_rec = dict(item_record)
+                    clean_rec.pop("condition", None)
+                    res = sb.table('inventory').insert(clean_rec).execute()
+                    if res.data and len(res.data) > 0:
+                        item_record = res.data[0]
+                        item_record["condition"] = condition
+                        inserted_id = item_record.get("id")
+                except Exception as ex2:
+                    print(f"[DB Error Supabase add_inventory_item retry] {ex2}")
             print(f"[DB Error Supabase add_inventory_item] {e}")
 
-    # Fallback to SQLite
+    # Mirror to SQLite
     conn = get_sqlite_conn()
     try:
         c = conn.cursor()
-        c.execute('''INSERT INTO inventory (name, value, true_value, bought_price, image, shop_pin)
-                     VALUES (?, ?, ?, ?, ?, ?)''', (name, value, true_value, bought_price, image, pin))
-        item_id = c.lastrowid
+        if inserted_id:
+            c.execute('''INSERT OR REPLACE INTO inventory (id, name, value, true_value, bought_price, image, condition, shop_pin)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (inserted_id, name, value, true_value, bought_price, image, condition, pin))
+        else:
+            c.execute('''INSERT INTO inventory (name, value, true_value, bought_price, image, condition, shop_pin)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)''', (name, value, true_value, bought_price, image, condition, pin))
+            item_record["id"] = c.lastrowid
         conn.commit()
-        item_record["id"] = item_id
-        return item_record
+    except Exception as e_sql:
+        print(f"[DB Error SQLite add_inventory_item] {e_sql}")
     finally:
         conn.close()
 
+    item_record.setdefault("condition", condition)
+    return item_record
+
 def update_inventory_item(item_id: int, **fields):
-    """อัปเดตข้อมูลสินค้า เช่น ชื่อ, ราคา (ตอนซ่อมของพัง)"""
+    """อัปเดตข้อมูลสินค้า เช่น ชื่อ, ราคา, สภาพ (ตอนซ่อมของพัง)"""
     if not item_id or not fields:
         return False
     sb = get_supabase_client()
     if sb:
         try:
             res = sb.table('inventory').update(fields).eq('id', item_id).execute()
-            return bool(res.data)
         except Exception as e:
+            err_str = str(e)
+            if "condition" in err_str:
+                clean_fields = {k: v for k, v in fields.items() if k != "condition"}
+                if clean_fields:
+                    try:
+                        res = sb.table('inventory').update(clean_fields).eq('id', item_id).execute()
+                    except Exception:
+                        pass
             print(f"[DB Error Supabase update_inventory_item] {e}")
 
-    # Fallback to SQLite
+    # Mirror to SQLite
     conn = get_sqlite_conn()
     try:
         c = conn.cursor()
@@ -453,9 +502,14 @@ def restore_shop_and_inventory(pin: str, shop_dict: dict, inv_list: list):
                     "true_value": it.get("true_value", 0),
                     "bought_price": it.get("bought_price", 0),
                     "image": it.get("image"),
+                    "condition": it.get("condition", 100),
                     "shop_pin": pin
                 }
-                sb.table('inventory').insert(inv_rec).execute()
+                try:
+                    sb.table('inventory').insert(inv_rec).execute()
+                except Exception:
+                    inv_rec.pop("condition", None)
+                    sb.table('inventory').insert(inv_rec).execute()
             return
         except Exception as e:
             print(f"[DB Error Supabase restore_shop_and_inventory] {e}")
@@ -477,12 +531,13 @@ def restore_shop_and_inventory(pin: str, shop_dict: dict, inv_list: list):
                    shop_dict.get("loan_remaining", 0), shop_dict.get("loan_daily", 0),
                    shop_dict.get("loan_days_left", 0), shop_dict.get("loan_principal", 0)))
         for it in inv_list:
-            vals = (it.get("name"), it.get("value", 0), it.get("true_value", 0), it.get("bought_price", 0), it.get("image"), pin)
+            cond = it.get("condition", 100)
+            vals = (it.get("name"), it.get("value", 0), it.get("true_value", 0), it.get("bought_price", 0), it.get("image"), cond, pin)
             try:
-                c.execute('INSERT INTO inventory (id, name, value, true_value, bought_price, image, shop_pin) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                c.execute('INSERT INTO inventory (id, name, value, true_value, bought_price, image, condition, shop_pin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                           (it.get("id"),) + vals)
             except sqlite3.IntegrityError:
-                c.execute('INSERT INTO inventory (name, value, true_value, bought_price, image, shop_pin) VALUES (?, ?, ?, ?, ?, ?)', vals)
+                c.execute('INSERT INTO inventory (name, value, true_value, bought_price, image, condition, shop_pin) VALUES (?, ?, ?, ?, ?, ?, ?)', vals)
         conn.commit()
     finally:
         conn.close()
