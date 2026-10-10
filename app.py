@@ -718,6 +718,7 @@ CUSTOMER_MOODS = [
     {
         "id": "joyful",
         "name": "ร่าเริงแจ่มใส",
+        "pct": 95,
         "icon": "fas fa-laugh-beam",
         "color": "#10b981",
         "desc": "อารมณ์ดีเป็นพิเศษ ยิ้มแย้ม เปิดใจรับข้อเสนอ",
@@ -726,6 +727,7 @@ CUSTOMER_MOODS = [
     {
         "id": "calm",
         "name": "สุขุมใจเย็น",
+        "pct": 75,
         "icon": "fas fa-smile",
         "color": "#06b6d4",
         "desc": "อารมณ์คงที่ มีสติสุขุม พูดคุยด้วยเหตุผล",
@@ -734,6 +736,7 @@ CUSTOMER_MOODS = [
     {
         "id": "rushed",
         "name": "รีบร้อนกระวนกระวาย",
+        "pct": 45,
         "icon": "fas fa-stopwatch",
         "color": "#f59e0b",
         "desc": "มีธุระด่วน ไม่อยากเสียเวลาเจรจานาน",
@@ -742,6 +745,7 @@ CUSTOMER_MOODS = [
     {
         "id": "suspicious",
         "name": "ช่างสงสัย/ระแวง",
+        "pct": 30,
         "icon": "fas fa-eye",
         "color": "#8b5cf6",
         "desc": "ขี้ระแวง จับตาดูทุกคำพูด ตรวจตราสินค้าละเอียด",
@@ -750,6 +754,7 @@ CUSTOMER_MOODS = [
     {
         "id": "irritated",
         "name": "หงุดหงิดพร้อมเหวี่ยง",
+        "pct": 15,
         "icon": "fas fa-angry",
         "color": "#ef4444",
         "desc": "อารมณ์บูด หงุดหงิดง่าย พร้อมยกเลิกดีลทันที",
@@ -761,6 +766,7 @@ COLLECTOR_TYPES = [
     {
         "id": "diehard",
         "name": "นักสะสมพันธุ์แท้",
+        "pct": 95,
         "icon": "fas fa-gem",
         "color": "#ec4899",
         "desc": "หลงใหลในของสะสม หายากแค่ไหนก็ยอมทุ่มไม่อั้น!",
@@ -769,6 +775,7 @@ COLLECTOR_TYPES = [
     {
         "id": "merchant",
         "name": "พ่อค้าคนกลาง",
+        "pct": 10,
         "icon": "fas fa-hand-holding-usd",
         "color": "#f59e0b",
         "desc": "ซื้อไปขายต่อเก็งกำไร กดราคาต่ำสุดๆ",
@@ -777,6 +784,7 @@ COLLECTOR_TYPES = [
     {
         "id": "casual",
         "name": "นักสะสมมือสมัครเล่น",
+        "pct": 65,
         "icon": "fas fa-heart",
         "color": "#3b82f6",
         "desc": "ซื้อเพราะความชอบส่วนตัว ดูของไม่ขาดมากนัก",
@@ -785,6 +793,7 @@ COLLECTOR_TYPES = [
     {
         "id": "bargain_hunter",
         "name": "นักล่าของถูก",
+        "pct": 25,
         "icon": "fas fa-tags",
         "color": "#14b8a6",
         "desc": "มองหาเฉพาะของราคาต่ำกว่าท้องตลาด ไม่ชอบของแพง",
@@ -793,6 +802,7 @@ COLLECTOR_TYPES = [
     {
         "id": "general_user",
         "name": "ผู้ใช้งานทั่วไป",
+        "pct": 40,
         "icon": "fas fa-user-check",
         "color": "#64748b",
         "desc": "ซื้อไปใช้งานจริง ไม่ได้สะสม เน้นคุ้มค่าสมราคา",
@@ -804,6 +814,7 @@ PATIENCE_LEVELS = [
     {
         "id": "very_patient",
         "name": "ใจเย็นดั่งสายน้ำ",
+        "pct": 95,
         "icon": "fas fa-shield-heart",
         "color": "#10b981",
         "desc": "ใจเย็นมาก ต่อรองได้หลายยก ไม่หัวร้อนง่าย",
@@ -812,6 +823,7 @@ PATIENCE_LEVELS = [
     {
         "id": "patient",
         "name": "ใจเย็นปานกลาง",
+        "pct": 70,
         "icon": "fas fa-hourglass-half",
         "color": "#06b6d4",
         "desc": "พร้อมเจรจา 2-3 รอบ หากข้อเสนอค่อยๆ ขยับเข้าหากัน",
@@ -820,6 +832,7 @@ PATIENCE_LEVELS = [
     {
         "id": "impatient",
         "name": "ค่อนข้างใจร้อน",
+        "pct": 35,
         "icon": "fas fa-fire-alt",
         "color": "#f97316",
         "desc": "ไม่ชอบการต่อรองยืดเยื้อ ถ้าไม่เข้าเป้าจะเริ่มบ่น",
@@ -828,6 +841,7 @@ PATIENCE_LEVELS = [
     {
         "id": "hot_tempered",
         "name": "ใจร้อนสุดขีด",
+        "pct": 15,
         "icon": "fas fa-bomb",
         "color": "#ef4444",
         "desc": "ความอดทนต่ำมาก ถ้าราคาต่างกันเกินไปจะล้มโต๊ะหนีทันที",
@@ -839,6 +853,7 @@ EXPERTISE_LEVELS = [
     {
         "id": "master",
         "name": "เซียนตัวยง (ตาเหยี่ยว)",
+        "pct": 95,
         "icon": "fas fa-crown",
         "color": "#8b5cf6",
         "desc": "รู้มูลค่าจริงเป๊ะๆ ตรวจของปลอมออกแทบ 100% หลอกไม่ได้",
@@ -847,6 +862,7 @@ EXPERTISE_LEVELS = [
     {
         "id": "knowledgeable",
         "name": "ตาถึง / มีความรู้ดี",
+        "pct": 70,
         "icon": "fas fa-glasses",
         "color": "#3b82f6",
         "desc": "พอรู้ราคาตลาดและจุดสังเกตสำคัญ ต่อรองอย่างมีชั้นเชิง",
@@ -855,6 +871,7 @@ EXPERTISE_LEVELS = [
     {
         "id": "average",
         "name": "ความรู้ระดับทั่วไป",
+        "pct": 45,
         "icon": "fas fa-search",
         "color": "#14b8a6",
         "desc": "รู้ราคาคร่าวๆ แต่อาจไม่ชำนาญการประเมินสภาพที่แท้จริง",
@@ -863,6 +880,7 @@ EXPERTISE_LEVELS = [
     {
         "id": "clueless",
         "name": "มือใหม่ไร้เดียงสา",
+        "pct": 15,
         "icon": "fas fa-question-circle",
         "color": "#10b981",
         "desc": "ไม่รู้ราคาตลาด โดนโน้มน้าวง่าย คล้อยตามคำพูดได้ดี",
@@ -871,6 +889,7 @@ EXPERTISE_LEVELS = [
     {
         "id": "ruthless",
         "name": "เขี้ยวลากดิน",
+        "pct": 85,
         "icon": "fas fa-skull-crossbones",
         "color": "#dc2626",
         "desc": "เคี่ยวจัด ไม่ยอมเสียเปรียบแม้แต่สลึงเดียว สู้ราคายาก",
