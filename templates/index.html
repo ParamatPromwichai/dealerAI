@@ -885,6 +885,8 @@
                 </button>
             </div>
         </div>
+    </div>
+
     <!-- Bankruptcy / Game Over Modal -->
     <div class="modal-overlay" id="bankruptcy-modal-overlay" style="z-index: 20000; display: none;">
         <div class="modal" style="max-width: 480px; text-align: center; border: 2px solid #ef4444; box-shadow: 0 0 35px rgba(239, 68, 68, 0.4);">
@@ -1981,12 +1983,9 @@
             }
         }
 
-        async function logout() {
-            const ok = await customConfirm("คุณต้องการออกจากระบบเพื่อเข้าด้วยรหัส PIN อื่น หรือสมัครบัญชีใหม่ใช่หรือไม่?", "ยืนยันออกจากระบบ");
-            if (!ok) return;
-            lsDel('user_pin');
-            lsDel('user_nickname');
-            lsDel('save_token');
+        function logout() {
+            if (!confirm("คุณต้องการออกจากระบบเพื่อเข้าด้วยรหัส PIN อื่น หรือสมัครบัญชีใหม่ใช่หรือไม่?")) return;
+            try { localStorage.clear(); } catch(e) {}
             user_pin = null;
             user_nickname = "";
             saveToken = null;
