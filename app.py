@@ -268,6 +268,10 @@ EVENTS = [
 def index():
     return render_template("index.html")
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
 @app.route("/sw.js")
 def serve_sw():
     resp = send_from_directory('static', 'sw.js', mimetype='application/javascript')
