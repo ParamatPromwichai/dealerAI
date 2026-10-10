@@ -633,6 +633,7 @@
                 <button class="manage-btn" onclick="toggleMusic()" title="เปิด/ปิดเสียงยุคกลาง"><i id="music-icon" class="fas fa-volume-mute"></i> <span class="hide-text">เสียง</span></button>
                 <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.5" oninput="changeVolume(this.value)" style="width: 70px; margin-right: 15px; cursor: pointer;" title="ปรับความดังเสียง">
                 <button class="manage-btn" onclick="openManager()"><i class="fas fa-building"></i> <span class="hide-text">จัดการร้าน</span></button>
+                <button class="manage-btn" onclick="logout()" title="ออกจากระบบ / สลับบัญชี" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4);"><i class="fas fa-sign-out-alt" style="color: #fca5a5;"></i> <span class="hide-text">ออกจากระบบ</span></button>
                 <div class="stat-box" title="วันที่"><i class="fas fa-calendar-alt"></i> <span class="hide-text">วันที่: </span><span id="day-counter">1</span></div>
                 <div class="stat-box" title="ลูกค้าที่รอคิว"><i class="fas fa-users"></i> <span class="hide-text">คิว: </span><span id="queue-counter">5</span></div>
                 <div class="stat-box" title="ชื่อเสียงร้าน"><i class="fas fa-star" style="color:#EAB308;"></i> <span class="hide-text">ชื่อเสียง: </span><span id="rep-counter">10</span></div>
@@ -770,7 +771,10 @@
                 <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
                 <p style="text-align:center; color:var(--muted-text)">⭐ อัปเกรดพนักงานได้สูงสุด 3 ดาว!</p>
             </div>
-            <button onclick="document.getElementById('manager-overlay').style.display='none'" style="width:100%; padding:10px; border-radius:8px; background:rgba(255,255,255,0.1); color:white; border:none; cursor:pointer;">✖️ <span class="hide-text">ปิด</span></button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button onclick="logout()" style="flex:1; padding:10px; border-radius:8px; background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.4); cursor:pointer; font-weight:bold;"><i class="fas fa-sign-out-alt"></i> สลับบัญชี / ออกจากระบบ</button>
+                <button onclick="document.getElementById('manager-overlay').style.display='none'" style="flex:1; padding:10px; border-radius:8px; background:rgba(255,255,255,0.1); color:white; border:none; cursor:pointer;">✖️ <span class="hide-text">ปิด</span></button>
+            </div>
         </div>
     </div>
 
@@ -1975,6 +1979,19 @@
             } finally {
                 isAuthing = false;
             }
+        }
+
+        async function logout() {
+            const ok = await customConfirm("คุณต้องการออกจากระบบเพื่อเข้าด้วยรหัส PIN อื่น หรือสมัครบัญชีใหม่ใช่หรือไม่?", "ยืนยันออกจากระบบ");
+            if (!ok) return;
+            lsDel('user_pin');
+            lsDel('user_nickname');
+            lsDel('save_token');
+            user_pin = null;
+            user_nickname = "";
+            saveToken = null;
+            sessionToken = null;
+            location.reload();
         }
 
         // Start by checking auth
