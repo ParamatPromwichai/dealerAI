@@ -56,3 +56,6 @@ ALTER TABLE public.shop ADD COLUMN IF NOT EXISTS loan_remaining BIGINT DEFAULT 0
 ALTER TABLE public.shop ADD COLUMN IF NOT EXISTS loan_daily BIGINT DEFAULT 0;
 ALTER TABLE public.shop ADD COLUMN IF NOT EXISTS loan_days_left INTEGER DEFAULT 0;
 ALTER TABLE public.shop ADD COLUMN IF NOT EXISTS loan_principal BIGINT DEFAULT 0;
+
+-- 7. เพิ่มคอลัมน์ระบบพนักงานสุ่มดาว (Employee Recruitment & Candidates System)
+ALTER TABLE public.shop ADD COLUMN IF NOT EXISTS staff_data TEXT;

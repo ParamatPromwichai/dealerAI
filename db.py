@@ -73,12 +73,13 @@ def init_db():
             loan_days_left INTEGER DEFAULT 0,
             loan_principal INTEGER DEFAULT 0
         )''')
-        # เพิ่มคอลัมน์เงินกู้สำหรับฐานข้อมูล SQLite เดิมที่สร้างไว้ก่อนหน้า
+        # เพิ่มคอลัมน์เงินกู้และระบบพนักงานสำหรับฐานข้อมูล SQLite
         for col, col_def in [
             ("loan_remaining", "INTEGER DEFAULT 0"),
             ("loan_daily", "INTEGER DEFAULT 0"),
             ("loan_days_left", "INTEGER DEFAULT 0"),
-            ("loan_principal", "INTEGER DEFAULT 0")
+            ("loan_principal", "INTEGER DEFAULT 0"),
+            ("staff_data", "TEXT DEFAULT ''")
         ]:
             try:
                 c.execute(f"ALTER TABLE shop ADD COLUMN {col} {col_def}")
@@ -112,18 +113,21 @@ def get_shop(pin: str):
             res = sb.table('shop').select('*').eq('pin', pin).execute()
             if res.data and len(res.data) > 0:
                 row = res.data[0]
-                if "loan_remaining" not in row or row.get("loan_remaining") is None:
-                    # Supabase ยังไม่ได้เพิ่มคอลัมน์ loan -> ดึงจาก SQLite มาผสาน
+                if "loan_remaining" not in row or row.get("loan_remaining") is None or "staff_data" not in row or row.get("staff_data") is None:
+                    # Supabase ยังไม่ได้เพิ่มคอลัมน์ loan หรือ staff_data -> ดึงจาก SQLite มาผสาน
                     conn = get_sqlite_conn()
                     try:
                         c = conn.cursor()
-                        c.execute('SELECT loan_remaining, loan_daily, loan_days_left, loan_principal FROM shop WHERE pin = ?', (pin,))
+                        c.execute('SELECT loan_remaining, loan_daily, loan_days_left, loan_principal, staff_data FROM shop WHERE pin = ?', (pin,))
                         sql_row = c.fetchone()
                         if sql_row:
-                            row["loan_remaining"] = sql_row["loan_remaining"] or 0
-                            row["loan_daily"] = sql_row["loan_daily"] or 0
-                            row["loan_days_left"] = sql_row["loan_days_left"] or 0
-                            row["loan_principal"] = sql_row["loan_principal"] or 0
+                            if "loan_remaining" not in row or row.get("loan_remaining") is None:
+                                row["loan_remaining"] = sql_row["loan_remaining"] or 0
+                                row["loan_daily"] = sql_row["loan_daily"] or 0
+                                row["loan_days_left"] = sql_row["loan_days_left"] or 0
+                                row["loan_principal"] = sql_row["loan_principal"] or 0
+                            if "staff_data" not in row or row.get("staff_data") is None:
+                                row["staff_data"] = sql_row["staff_data"] or None
                     except Exception:
                         pass
                     finally:
@@ -208,9 +212,9 @@ def update_shop(pin: str, **fields):
             sb.table('shop').update(fields).eq('pin', pin).execute()
         except Exception as e:
             err_str = str(e)
-            if "loan_" in err_str:
-                # ถ้า Supabase ยังไม่ได้เพิ่มคอลัมน์ loan ให้อัปเดตเฉพาะคอลัมน์อื่น
-                clean_fields = {k: v for k, v in fields.items() if not k.startswith("loan_")}
+            if "loan_" in err_str or "staff_data" in err_str:
+                # ถ้า Supabase ยังไม่ได้เพิ่มคอลัมน์ loan หรือ staff_data ให้อัปเดตเฉพาะคอลัมน์อื่น
+                clean_fields = {k: v for k, v in fields.items() if not k.startswith("loan_") and k != "staff_data"}
                 if clean_fields:
                     try:
                         sb.table('shop').update(clean_fields).eq('pin', pin).execute()

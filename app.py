@@ -67,8 +67,144 @@ def read_token(token):
 SHOP_FIELDS = ["nickname", "money", "day", "reputation", "customers_left",
                "guard_level", "repair_level", "forger_level", "ad_level",
                "version", "active_customer",
-               "loan_remaining", "loan_daily", "loan_days_left", "loan_principal"]
+               "loan_remaining", "loan_daily", "loan_days_left", "loan_principal", "staff_data"]
 INV_FIELDS = ["name", "value", "true_value", "bought_price", "image"]
+
+STAFF_ROLE_INFO = {
+    "guard": {
+        "title": "ยามเฝ้าร้าน",
+        "icon": "fas fa-shield-alt",
+        "wages": [0, 1000, 2000, 3000],
+        "costs": [0, 5000, 12000, 25000],
+        "desc": {
+            1: "ป้องกันการถูกโจรปล้นร้าน 50%",
+            2: "กันโจร 100% และไล่นักเลงเก็บส่วย",
+            3: "กันโจร+ได้เงินรางวัลนำจับ ฿5,000, ลดบทลงโทษเบี้ยวหนี้"
+        }
+    },
+    "repair": {
+        "title": "ช่างซ่อม",
+        "icon": "fas fa-tools",
+        "wages": [0, 1500, 3000, 5000],
+        "costs": [0, 8000, 18000, 35000],
+        "desc": {
+            1: "สุ่มซ่อมของพัง 50% คืนละ 1 ชิ้น",
+            2: "ซ่อมของพัง 1 ชิ้นทุกคืนแน่นอน",
+            3: "ซ่อมของพังทุกชิ้นในคลังทุกคืน!"
+        }
+    },
+    "forger": {
+        "title": "นักปลอมแปลง",
+        "icon": "fas fa-mask",
+        "wages": [0, 2000, 4000, 7000],
+        "costs": [0, 15000, 30000, 50000],
+        "desc": {
+            1: "พรางของปลอม: ลูกค้าตรวจจับได้ 40%",
+            2: "พรางของปลอมเนียนขึ้น: ลูกค้าตรวจจับได้เพียง 15%",
+            3: "พรางของปลอมขั้นเทพ: ลูกค้าดูไม่ออก 100% (ไม่โดนจับแน่นอน)"
+        }
+    },
+    "ad": {
+        "title": "นักโฆษณา",
+        "icon": "fas fa-bullhorn",
+        "wages": [0, 1000, 2500, 5000],
+        "costs": [0, 8000, 20000, 40000],
+        "desc": {
+            1: "เพิ่มชื่อเสียงร้าน +1 ทุกวัน",
+            2: "เพิ่มชื่อเสียงร้าน +2 ทุกวัน, ดึงลูกค้ามาต่อคิวเยอะขึ้น",
+            3: "เพิ่มชื่อเสียงร้าน +4 ทุกวัน, ลูกค้าแน่นร้าน!"
+        }
+    },
+    "expert": {
+        "title": "ผู้เชี่ยวชาญ",
+        "icon": "fas fa-search-dollar",
+        "wages": [0, 1000, 2000, 4000],
+        "costs": [0, 6000, 15000, 30000],
+        "desc": {
+            1: "ลดค่าตรวจของเหลือเพียง ฿250",
+            2: "ตรวจของฟรี ฿0! (ทั้งตอนรับซื้อและขาย)",
+            3: "ตรวจของฟรี + สแกนสถานะของปลอม/แท้ในร้านทันทีไม่ต้องกดตรวจ!"
+        }
+    }
+}
+
+STAFF_NAMES_FIRST = ["สมชาย", "วิชัย", "ลุงสนั่น", "เจ๊ณี", "อาร์ตี้", "ช่างอู๊ด", "ป้าศรี", "โต้ง", "บอย", "หมอเก่ง", "เฉียบ", "เอก", "เด่น", "น้าหม่ำ", "ก้อง", "ชาญ"]
+STAFF_NAMES_LAST = ["สายลุย", "ตาเหยี่ยว", "เนียนกริบ", "ช่างทอง", "ปากหวาน", "สกิมเมอร์", "ตัวตึง", "มือฉมัง", "เซียนพระ", "มือทอง", "สายบู๊", "ตาเพชร", "ไร้พ่าย"]
+MAX_STAFF_SLOTS = 3
+
+def generate_candidate():
+    role = random.choice(list(STAFF_ROLE_INFO.keys()))
+    r = random.random()
+    stars = 1 if r < 0.50 else (2 if r < 0.85 else 3)
+    info = STAFF_ROLE_INFO[role]
+    name = f"{random.choice(STAFF_NAMES_FIRST)} {random.choice(STAFF_NAMES_LAST)}"
+    cand_id = f"cand_{secrets.token_hex(4)}"
+    return {
+        "id": cand_id,
+        "name": name,
+        "role": role,
+        "role_title": info["title"],
+        "icon": info["icon"],
+        "stars": stars,
+        "wage": info["wages"][stars],
+        "cost": info["costs"][stars],
+        "desc": info["desc"][stars]
+    }
+
+def get_staff_data(shop):
+    raw = shop.get("staff_data")
+    data = None
+    if raw:
+        if isinstance(raw, dict):
+            data = raw
+        elif isinstance(raw, str):
+            try:
+                data = json.loads(raw)
+            except Exception:
+                data = None
+    if not data or not isinstance(data, dict):
+        data = {"hired": [], "candidates": [], "max_slots": MAX_STAFF_SLOTS}
+
+    # Auto-migrate legacy levels once if hired has never been initialized
+    if "migrated" not in data and not data.get("hired"):
+        legacy_roles = [("guard", "guard_level"), ("repair", "repair_level"), ("forger", "forger_level"), ("ad", "ad_level")]
+        migrated = []
+        for role, col in legacy_roles:
+            lvl_val = lvl(shop, col)
+            if lvl_val > 0 and len(migrated) < MAX_STAFF_SLOTS:
+                info = STAFF_ROLE_INFO[role]
+                migrated.append({
+                    "id": f"staff_{role}_{lvl_val}",
+                    "name": f"{info['title']}ประจำร้าน",
+                    "role": role,
+                    "role_title": info["title"],
+                    "icon": info["icon"],
+                    "stars": lvl_val,
+                    "wage": info["wages"][lvl_val],
+                    "cost": info["costs"][lvl_val],
+                    "desc": info["desc"][lvl_val]
+                })
+        data["hired"] = migrated
+        data["migrated"] = True
+
+    candidates = data.get("candidates") or []
+    if len(candidates) < 3:
+        while len(candidates) < 3:
+            candidates.append(generate_candidate())
+        data["candidates"] = candidates
+
+    data["max_slots"] = MAX_STAFF_SLOTS
+    return data
+
+def sync_staff_levels(hired_list):
+    res = {}
+    for role in ["guard", "repair", "forger", "ad", "expert"]:
+        role_stars = [s["stars"] for s in (hired_list or []) if s.get("role") == role]
+        res[f"{role}_level"] = max(role_stars) if role_stars else 0
+    return res
+
+def calculate_hired_wages(hired_list):
+    return sum(int(s.get("wage") or 0) for s in (hired_list or []))
 
 def lvl(shop, key):
     v = shop.get(key)
@@ -647,6 +783,10 @@ def load_game():
     inv = db.get_inventory(pin)
     is_bankrupt = bool(int(shop.get("loan_remaining") or 0) > 0 and (shop.get("reputation") if shop.get("reputation") is not None else 10) <= 0)
 
+    staff_data = get_staff_data(shop)
+    levels = sync_staff_levels(staff_data.get("hired", []))
+    total_wages = calculate_hired_wages(staff_data.get("hired", []))
+
     return jsonify({
         "status": "ok",
         "bankrupt": is_bankrupt,
@@ -662,10 +802,15 @@ def load_game():
             "principal": int(shop.get("loan_principal") or 0)
         },
         "staff": {
-            "guard": lvl(shop, "guard_level"),
-            "repair": lvl(shop, "repair_level"),
-            "forger": lvl(shop, "forger_level"),
-            "ad": lvl(shop, "ad_level")
+            "guard": levels["guard_level"],
+            "repair": levels["repair_level"],
+            "forger": levels["forger_level"],
+            "ad": levels["ad_level"],
+            "expert": levels["expert_level"],
+            "hired": staff_data.get("hired", []),
+            "candidates": staff_data.get("candidates", []),
+            "max_slots": MAX_STAFF_SLOTS,
+            "total_wages": total_wages
         },
         "inventory": inv,
         "save": build_save(pin)
@@ -686,14 +831,16 @@ def end_day():
 
     rent = 1000
 
-    g_level = lvl(shop, "guard_level")
-    r_level = lvl(shop, "repair_level")
-    f_level = lvl(shop, "forger_level")
-    ad_level = lvl(shop, "ad_level")
+    staff_data = get_staff_data(shop)
+    hired = staff_data.get("hired", [])
+    levels = sync_staff_levels(hired)
+    g_level = levels["guard_level"]
+    r_level = levels["repair_level"]
+    f_level = levels["forger_level"]
+    ad_level = levels["ad_level"]
+    expert_level = levels["expert_level"]
 
-    wages = [0, 1000, 2000, 3000][g_level] + [0, 1500, 3000, 5000][r_level] \
-          + [0, 2000, 4000, 7000][f_level] + [0, 1000, 2500, 5000][ad_level]
-
+    wages = calculate_hired_wages(hired)
     total_expenses = rent + wages
     event = dict(random.choice(EVENTS))
     event_logs = []
@@ -745,7 +892,7 @@ def end_day():
     if ad_level > 0:
         rep_buff = [0, 1, 2, 4][ad_level]
         new_rep += rep_buff
-        event_logs.append(f"นักโฆษณา (Lv.{ad_level}) ช่วยโปรโมทร้าน ได้ชื่อเสียงเพิ่ม +{rep_buff}")
+        event_logs.append(f"📢 นักโฆษณา (Lv.{ad_level}) ช่วยโปรโมทร้าน ได้ชื่อเสียงเพิ่ม +{rep_buff}")
 
     # Repairman passive buff
     if r_level > 0:
@@ -765,7 +912,11 @@ def end_day():
             fixed_count += 1
 
         if fixed_count > 0:
-            event_logs.append(f"ช่างซ่อม (Lv.{r_level}) แอบซ่อมของพังให้คุณไป {fixed_count} ชิ้นเมื่อคืนนี้!")
+            event_logs.append(f"🔧 ช่างซ่อม (Lv.{r_level}) แอบซ่อมของพังให้คุณไป {fixed_count} ชิ้นเมื่อคืนนี้!")
+
+    # Expert Appraiser passive buff
+    if expert_level >= 3:
+        event_logs.append(f"🔍 ผู้เชี่ยวชาญ (Lv.{expert_level}) ตรวจตราสินค้าในร้านอย่างละเอียด")
 
     # Bankruptcy check: หากชื่อเสียงเหลือ 0 จากการเบี้ยวหนี้ หรือชื่อเสียงหมดร้าน
     is_bankrupt = False
@@ -784,8 +935,14 @@ def end_day():
     # Queue size based on reputation (min 3, max 20)
     new_queue = min(20, max(3, 3 + (new_rep // 10)))
 
+    # Refresh candidates for next day
+    staff_data["candidates"] = [generate_candidate() for _ in range(3)]
+
     db.update_shop(pin, money=new_money, day=new_day, reputation=new_rep, customers_left=new_queue, active_customer=None,
-                   loan_remaining=loan_remaining, loan_daily=loan_daily, loan_days_left=loan_days_left)
+                   loan_remaining=loan_remaining, loan_daily=loan_daily, loan_days_left=loan_days_left,
+                   guard_level=levels["guard_level"], repair_level=levels["repair_level"],
+                   forger_level=levels["forger_level"], ad_level=levels["ad_level"],
+                   staff_data=json.dumps(staff_data, ensure_ascii=False))
     bump_version(pin)
 
     return jsonify({
@@ -867,8 +1024,14 @@ def restart_game():
     if not shop:
         return shop_not_found()
 
+    fresh_staff = {
+        "hired": [],
+        "candidates": [generate_candidate() for _ in range(3)],
+        "max_slots": MAX_STAFF_SLOTS
+    }
     db.update_shop(pin, money=100000, day=1, reputation=10, customers_left=5,
                    guard_level=0, repair_level=0, forger_level=0, ad_level=0,
+                   staff_data=json.dumps(fresh_staff, ensure_ascii=False),
                    active_customer=None,
                    loan_remaining=0, loan_daily=0, loan_days_left=0, loan_principal=0)
     db.clear_inventory(pin)
@@ -881,13 +1044,157 @@ def restart_game():
         "save": build_save(pin)
     })
 
+@app.route("/api/hire_staff", methods=["POST"])
+def hire_staff():
+    data = req_json()
+    pin = data.get("pin")
+    cand_id = data.get("candidate_id")
+
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+
+    staff_data = get_staff_data(shop)
+    hired = staff_data.get("hired", [])
+    candidates = staff_data.get("candidates", [])
+
+    if len(hired) >= MAX_STAFF_SLOTS:
+        return jsonify({"status": "error", "message": f"พนักงานเต็มโควตาแล้ว (สูงสุด {MAX_STAFF_SLOTS} คน) กรุณาเลิกจ้างพนักงานคนเดิมก่อน"})
+
+    cand = next((c for c in candidates if c["id"] == cand_id), None)
+    if not cand:
+        return jsonify({"status": "error", "message": "ไม่พบผู้สมัครงานคนนี้"})
+
+    cost = cand.get("cost", 0)
+    if shop["money"] < cost:
+        return jsonify({"status": "error", "message": f"เงินไม่พอค่าเซ็นสัญญา (ต้องการ ฿{cost:,})"})
+
+    new_money = shop["money"] - cost
+    candidates = [c for c in candidates if c["id"] != cand_id]
+    hired_member = dict(cand)
+    hired_member["hired_at_day"] = shop.get("day", 1)
+    hired.append(hired_member)
+
+    staff_data["hired"] = hired
+    staff_data["candidates"] = candidates
+    levels = sync_staff_levels(hired)
+
+    db.update_shop(pin, money=new_money,
+                   guard_level=levels["guard_level"], repair_level=levels["repair_level"],
+                   forger_level=levels["forger_level"], ad_level=levels["ad_level"],
+                   staff_data=json.dumps(staff_data, ensure_ascii=False))
+    bump_version(pin)
+
+    return jsonify({
+        "status": "ok",
+        "message": f"จ้าง {cand['name']} ({cand['role_title']} {cand['stars']}⭐) เข้าทำงานเรียบร้อยแล้ว!",
+        "new_money": new_money,
+        "staff": {
+            "guard": levels["guard_level"],
+            "repair": levels["repair_level"],
+            "forger": levels["forger_level"],
+            "ad": levels["ad_level"],
+            "expert": levels["expert_level"],
+            "hired": hired,
+            "candidates": candidates,
+            "max_slots": MAX_STAFF_SLOTS,
+            "total_wages": calculate_hired_wages(hired)
+        },
+        "save": build_save(pin)
+    })
+
+@app.route("/api/fire_staff", methods=["POST"])
+def fire_staff():
+    data = req_json()
+    pin = data.get("pin")
+    staff_id = data.get("staff_id")
+
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+
+    staff_data = get_staff_data(shop)
+    hired = staff_data.get("hired", [])
+
+    fired = next((s for s in hired if s["id"] == staff_id), None)
+    if not fired:
+        return jsonify({"status": "error", "message": "ไม่พบพนักงานคนนี้ในร้าน"})
+
+    hired = [s for s in hired if s["id"] != staff_id]
+    staff_data["hired"] = hired
+    levels = sync_staff_levels(hired)
+
+    db.update_shop(pin,
+                   guard_level=levels["guard_level"], repair_level=levels["repair_level"],
+                   forger_level=levels["forger_level"], ad_level=levels["ad_level"],
+                   staff_data=json.dumps(staff_data, ensure_ascii=False))
+    bump_version(pin)
+
+    return jsonify({
+        "status": "ok",
+        "message": f"เลิกจ้าง {fired['name']} เรียบร้อยแล้ว (เหลือช่องว่าง {MAX_STAFF_SLOTS - len(hired)} ช่อง)",
+        "staff": {
+            "guard": levels["guard_level"],
+            "repair": levels["repair_level"],
+            "forger": levels["forger_level"],
+            "ad": levels["ad_level"],
+            "expert": levels["expert_level"],
+            "hired": hired,
+            "candidates": staff_data.get("candidates", []),
+            "max_slots": MAX_STAFF_SLOTS,
+            "total_wages": calculate_hired_wages(hired)
+        },
+        "save": build_save(pin)
+    })
+
+@app.route("/api/refresh_candidates", methods=["POST"])
+def refresh_candidates():
+    data = req_json()
+    pin = data.get("pin")
+
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+
+    REFRESH_COST = 500
+    if shop["money"] < REFRESH_COST:
+        return jsonify({"status": "error", "message": f"เงินไม่พอค่าสุ่มหาผู้สมัครใหม่ (ต้องการ ฿{REFRESH_COST:,})"})
+
+    new_money = shop["money"] - REFRESH_COST
+    staff_data = get_staff_data(shop)
+    staff_data["candidates"] = [generate_candidate() for _ in range(3)]
+
+    db.update_shop(pin, money=new_money, staff_data=json.dumps(staff_data, ensure_ascii=False))
+    bump_version(pin)
+
+    levels = sync_staff_levels(staff_data.get("hired", []))
+    return jsonify({
+        "status": "ok",
+        "message": "สุ่มค้นหาผู้สมัครงานใหม่เรียบร้อยแล้ว!",
+        "money": new_money,
+        "new_money": new_money,
+        "candidates": staff_data["candidates"],
+        "staff": {
+            "guard": levels["guard_level"],
+            "repair": levels["repair_level"],
+            "forger": levels["forger_level"],
+            "ad": levels["ad_level"],
+            "expert": levels["expert_level"],
+            "hired": staff_data.get("hired", []),
+            "candidates": staff_data["candidates"],
+            "max_slots": MAX_STAFF_SLOTS,
+            "total_wages": calculate_hired_wages(staff_data.get("hired", []))
+        },
+        "save": build_save(pin)
+    })
+
 @app.route("/api/upgrade_staff", methods=["POST"])
 def upgrade_staff():
     data = req_json()
     pin = data.get("pin")
     role = data.get("role")
 
-    valid_roles = ["guard", "repair", "forger", "ad"]
+    valid_roles = ["guard", "repair", "forger", "ad", "expert"]
     if role not in valid_roles:
         return jsonify({"status": "error", "message": "Role not found"})
 
@@ -895,27 +1202,61 @@ def upgrade_staff():
     if not shop:
         return shop_not_found()
 
-    col = f"{role}_level"
-    current_lvl = lvl(shop, col)
+    staff_data = get_staff_data(shop)
+    hired = staff_data.get("hired", [])
+    
+    # Check if this role is currently hired
+    matching = next((s for s in hired if s["role"] == role), None)
+    current_lvl = matching["stars"] if matching else 0
 
     if current_lvl >= 3:
-        return jsonify({"status": "error", "message": "ระดับสูงสุดแล้ว"})
+        return jsonify({"status": "error", "message": "ระดับสูงสุดแล้ว (3 ดาว)"})
 
     costs_map = {
-        "guard": [10000, 25000, 50000],
-        "repair": [15000, 30000, 60000],
-        "forger": [30000, 60000, 100000],
-        "ad": [20000, 40000, 80000]
+        "guard": [5000, 12000, 25000],
+        "repair": [8000, 18000, 35000],
+        "forger": [15000, 30000, 50000],
+        "ad": [8000, 20000, 40000],
+        "expert": [6000, 15000, 30000]
     }
     cost = costs_map[role][current_lvl]
 
     if shop["money"] < cost:
         return jsonify({"status": "error", "message": f"เงินไม่พอ (ต้องการ {cost:,} บาท)"})
 
-    db.update_shop(pin, money=shop["money"] - cost, **{col: current_lvl + 1})
+    if not matching:
+        if len(hired) >= MAX_STAFF_SLOTS:
+            return jsonify({"status": "error", "message": f"พนักงานเต็มโควตาแล้ว (สูงสุด {MAX_STAFF_SLOTS} คน) กรุณาเลิกจ้างพนักงานคนเดิมก่อน"})
+        info = STAFF_ROLE_INFO[role]
+        hired.append({
+            "id": f"staff_{role}_1",
+            "name": f"{info['title']}ประจำร้าน",
+            "role": role,
+            "role_title": info["title"],
+            "icon": info["icon"],
+            "stars": 1,
+            "wage": info["wages"][1],
+            "cost": info["costs"][1],
+            "desc": info["desc"][1]
+        })
+    else:
+        new_stars = current_lvl + 1
+        info = STAFF_ROLE_INFO[role]
+        matching["stars"] = new_stars
+        matching["wage"] = info["wages"][new_stars]
+        matching["cost"] = info["costs"][new_stars]
+        matching["desc"] = info["desc"][new_stars]
+
+    staff_data["hired"] = hired
+    levels = sync_staff_levels(hired)
+
+    db.update_shop(pin, money=shop["money"] - cost,
+                   guard_level=levels["guard_level"], repair_level=levels["repair_level"],
+                   forger_level=levels["forger_level"], ad_level=levels["ad_level"],
+                   staff_data=json.dumps(staff_data, ensure_ascii=False))
     bump_version(pin)
 
-    return jsonify({"status": "ok", "message": f"อัปเกรดสำเร็จเป็นระดับ {current_lvl + 1}!", "save": build_save(pin)})
+    return jsonify({"status": "ok", "message": f"อัปเกรดสำเร็จเป็นระดับ {current_lvl + 1} ดาว!", "save": build_save(pin)})
 
 def load_session(pin, token):
     """ดึงสถานะลูกค้าคนปัจจุบัน: จาก token ของ Client ก่อน (ทนต่อการรีสตาร์ท/หลาย instance) แล้วค่อย cache"""
@@ -995,6 +1336,7 @@ def new_customer():
         game["max_price"] = max_price
         game["gender"] = gender
         game["persona_desc"] = persona
+        game["is_fake"] = bool(item.get("true_value", item["value"]) < item["value"])
         game["last_bot_price"] = 0
 
         system_prompt = f"""คุณกำลังเล่นเกม Roleplay: คุณคือลูกค้าที่เดินเข้ามาในร้านขายของมือสองเพื่อ 'ขอซื้อของ'
@@ -1071,6 +1413,14 @@ def new_customer():
         {"role": "user", "content": initial_user_msg}
     ]
 
+    # Expert Appraiser Lv.3 passive: Auto-appraise item immediately!
+    staff_data = get_staff_data(shop)
+    levels = sync_staff_levels(staff_data.get("hired", []))
+    expert_level = levels["expert_level"]
+    auto_appraised = (expert_level >= 3)
+    if auto_appraised:
+        game["appraised"] = True
+
     custom_key = data.get("groq_key")
     response = call_llm(game["history"], custom_key=custom_key)
     is_fallback = False
@@ -1098,6 +1448,9 @@ def new_customer():
         "message": clean_resp,
         "bot_price": game.get("last_bot_price") or 0,
         "fallback": is_fallback,
+        "auto_appraised": auto_appraised,
+        "is_fake": game.get("is_fake", False) if auto_appraised else None,
+        "true_value": (game.get("true_value") or game["value"]) if auto_appraised else None,
         "session": save_session(pin, game),
         "customers_left": max(0, (shop.get("customers_left") or 0) - 1),
         "save": build_save(pin)
@@ -1112,9 +1465,6 @@ def appraise_item():
     if not game:
         return jsonify({"status": "error", "message": "Game session not found"})
 
-    if game.get("transaction_type") != "sell":
-        return jsonify({"status": "error", "message": "ตรวจสอบได้เฉพาะตอนลูกค้ามาขายของเท่านั้น"})
-
     if game.get("appraised"):
         return jsonify({"status": "error", "message": "ตรวจสอบสินค้าชิ้นนี้ไปแล้ว"})
 
@@ -1124,19 +1474,36 @@ def appraise_item():
     if shop.get("active_customer") != game.get("cid"):
         return jsonify({"status": "error", "message": "Game session not found"})
 
-    APPRAISAL_COST = 500
-    if shop["money"] < APPRAISAL_COST:
-        return jsonify({"status": "error", "message": "เงินไม่พอค่าตรวจสอบ (ต้องใช้ ฿500)"})
+    # Check expert appraiser discount/free
+    staff_data = get_staff_data(shop)
+    levels = sync_staff_levels(staff_data.get("hired", []))
+    expert_lvl = levels["expert_level"]
 
-    db.update_shop(pin, money=shop["money"] - APPRAISAL_COST)
-    bump_version(pin)
+    if expert_lvl >= 2:
+        cost = 0
+    elif expert_lvl == 1:
+        cost = 250
+    else:
+        cost = 500
+
+    if cost > 0 and shop["money"] < cost:
+        return jsonify({"status": "error", "message": f"เงินไม่พอค่าตรวจสอบ (ต้องการ ฿{cost:,})"})
+
+    if cost > 0:
+        db.update_shop(pin, money=shop["money"] - cost)
+        bump_version(pin)
 
     game["appraised"] = True
+    is_fake = bool(game.get("is_fake", False))
+    true_val = game.get("true_value") or game["value"]
+    trans_type = game.get("transaction_type")
+
     return jsonify({
         "status": "ok",
-        "is_fake": bool(game.get("is_fake", False)),
-        "true_value": game.get("true_value") or game["value"],
-        "cost": APPRAISAL_COST,
+        "is_fake": is_fake,
+        "true_value": true_val,
+        "cost": cost,
+        "trans_type": trans_type,
         "session": save_session(pin, game),
         "save": build_save(pin)
     })
@@ -1328,12 +1695,59 @@ def chat():
                 result["accepted"] = True
                 result["item"] = {k: item.get(k) for k in ("name", "value", "image")}
         else:
+            # ลูกค้ามาซื้อของจากเรา (Shop selling item to customer)
+            is_fake_item = bool(game.get("is_fake") or (item.get("true_value", item["value"]) < item["value"]))
+
+            staff_data = get_staff_data(shop)
+            levels = sync_staff_levels(staff_data.get("hired", []))
+            forger_lvl = levels["forger_level"]
+            persona = game.get("persona_desc", "")
+
+            # โอกาสที่ลูกค้าจะตรวจสอบของ (ผู้เชี่ยวชาญ/คนรวยจะส่องถี่กว่า)
+            inspect_chance = 0.80 if ("เศรษฐี" in persona or "พ่อค้าคนกลาง" in persona) else (0.35 if ("ซื่อๆ" in persona or "ร้อนเงิน" in persona) else 0.55)
+            will_inspect = is_fake_item and (random.random() < inspect_chance)
+
+            caught = False
+            if will_inspect:
+                # พลังนักปลอมแปลงในการตบตา: 0 ดาว = โดนจับ 100%, 1 ดาว = รอด 60%, 2 ดาว = รอด 85%, 3 ดาว = รอด 100%
+                fool_chance = [0.0, 0.60, 0.85, 1.00][min(3, forger_lvl)]
+                if random.random() >= fool_chance:
+                    caught = True
+
+            if caught:
+                # โดนจับได้ว่าขายของปลอม! ปรับเงินชดใช้ + เสียชื่อเสียง + ดีลล่ม
+                fine = max(3000, int(agreed_price * 0.40))
+                rep_loss = 4
+                new_money = max(0, shop["money"] - fine)
+                new_rep = max(0, (shop.get("reputation") or 10) - rep_loss)
+                db.update_shop(pin, money=new_money, reputation=new_rep, active_customer=None)
+                bump_version(pin)
+                current_games.pop(pin, None)
+
+                fail_msg = f"🚨 เดี๋ยวนะ! ขอส่องดูชัดๆ ก่อน... เฮ้ย! นี่มันของปลอมนี่หว่า!! แกกล้าเอาของปลอมมาย้อมแมวขายฉันเหรอ?! จ่ายค่าปรับและค่าทำขวัญมา ฿{fine:,} เดี๋ยวนี้! ไม่งั้นฉันแจ้งความแน่!"
+                return jsonify({
+                    "status": "ok",
+                    "accepted": False,
+                    "rejected": True,
+                    "fake_caught": True,
+                    "fine": fine,
+                    "rep_loss": rep_loss,
+                    "price": agreed_price,
+                    "type": "buy",
+                    "message": fail_msg,
+                    "item": {k: item.get(k) for k in ("name", "value", "image", "bought_price")},
+                    "save": build_save(pin)
+                })
+
             # ลูกค้ามาซื้อของจากเรา -> ลบของออกจากคลังก่อน ถ้าลบได้จริงค่อยรับเงิน (กันขายของชิ้นเดิมซ้ำ)
             deleted = db.delete_inventory_item(pin, item_id=item.get("id"), name=item.get("name"), bought_price=item.get("bought_price"))
             if deleted:
                 db.update_shop(pin, money=shop["money"] + agreed_price, reputation=(shop.get("reputation") or 10) + 1)
                 result["accepted"] = True
                 result["item"] = {k: item.get(k) for k in ("name", "value", "image", "bought_price")}
+                if is_fake_item:
+                    result["fooled_fake"] = True
+                    result["forger_level"] = forger_lvl
             else:
                 result["item_missing"] = True
                 result["rejected"] = True
