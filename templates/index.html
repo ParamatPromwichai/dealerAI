@@ -1518,7 +1518,7 @@
         let isSending = false;
         let isCallingCustomer = false;
         let inventory = [];
-        let currentTransType = "sell";
+        let currentTransType = lsGet('dealer_last_trans') || "buy";
         let currentItemValue = 0;
         let currentNegotiateMode = 'price';
         let currentCustomerPrice = 0;
@@ -1882,7 +1882,8 @@
             addMessage("กำลังมีลูกค้าเดินเข้ามาในร้าน...", 'system');
 
             try {
-                const data = await api('/api/new_customer', { last_type: currentTransType });
+                const lastType = currentTransType || lsGet('dealer_last_trans') || 'buy';
+                const data = await api('/api/new_customer', { last_type: lastType });
                 chatBox.innerHTML = '';
 
                 if (data.status === 'end_of_day') {
@@ -1892,6 +1893,7 @@
 
                 if (data.status === 'ok' && data.item) {
                     currentTransType = data.type;
+                    lsSet('dealer_last_trans', data.type);
                     currentItemValue = data.item.value || 0;
                     currentCustomerProfile = data.customer || null;
                     currentItemCondition = (data.item.condition != null) ? data.item.condition : 100;
@@ -2475,6 +2477,8 @@
         function closeEod() {
             document.getElementById('eod-overlay').style.display = 'none';
             chatBox.innerHTML = '<div class="message msg-system">เริ่มเช้าวันใหม่! เปิดร้านรับลูกค้าได้เลย</div>';
+            currentTransType = "buy";
+            lsSet('dealer_last_trans', 'buy');
             nextCustomerBtn.style.display = 'block';
             nextCustomerBtn.innerHTML = '<i class="fas fa-store"></i> <span class="hide-text">เปิดร้านรับลูกค้าคนแรก</span>';
             avatarContainer.style.display = 'none';
@@ -2507,6 +2511,8 @@
                     document.getElementById('bankruptcy-modal-overlay').style.display = 'none';
                     document.getElementById('eod-overlay').style.display = 'none';
                     chatBox.innerHTML = '<div class="message msg-system">🏢 คุณได้รับโอกาสเปิดร้านใหม่อีกครั้ง! เงินทุนเริ่มต้น ฿100,000 โปรดรักษาชื่อเสียงและบริหารหนี้สินให้ดี</div>';
+                    currentTransType = "buy";
+                    lsSet('dealer_last_trans', 'buy');
                     nextCustomerBtn.style.display = 'block';
                     nextCustomerBtn.innerHTML = '<i class="fas fa-store"></i> <span class="hide-text">เปิดร้านรับลูกค้าคนแรก</span>';
                     avatarContainer.style.display = 'none';

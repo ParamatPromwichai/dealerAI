@@ -1606,18 +1606,22 @@ def new_customer():
     gender = avatar_data["gender"]
     customer = generate_customer_profile(gender)
 
-    # สลับและรักษาสมดุลระหว่างคนมาขายของ (sell) กับคนมาซื้อของ (buy) ให้เท่าๆ กัน 50:50
+    # สลับและรักษาสมดุลระหว่างคนมาขายของ (sell) กับคนมาซื้อของ (buy) ให้เท่าๆ กัน 50:50 แบบเป๊ะๆ
     last_trans = data.get("last_type") or current_games.get(f"{pin}_last_trans")
     is_buyer = False
     if len(inventory) > 0:
         if last_trans == "buy":
-            # คนก่อนหน้ามาขอซื้อของไปแล้ว -> สลับให้คนถัดไปเอาของมาขายให้ร้าน (โอกาส 80% เป็นคนมาขาย)
-            is_buyer = (random.random() < 0.20)
+            # คนก่อนหน้ามาซื้อของไปแล้ว -> คนนี้ต้องเป็นคนนำของมาขายให้ร้าน (สลับ 100%)
+            is_buyer = False
         elif last_trans == "sell":
-            # คนก่อนหน้ามาขายของให้ร้าน -> สลับให้คนถัดไปมาขอซื้อของในร้าน (โอกาส 80% เป็นคนมาซื้อ)
-            is_buyer = (random.random() < 0.80)
+            # คนก่อนหน้ามาขายของให้ร้าน -> คนนี้ต้องเป็นคนมาขอซื้อของในร้าน (สลับ 100%)
+            is_buyer = True
         else:
-            is_buyer = (random.random() < 0.50)
+            # เริ่มต้นหรือไม่มีประวัติ -> ให้เป็นคนมาขายของก่อนเสมอ เพื่อให้ร้านมีของหมุนเวียน
+            is_buyer = False
+    else:
+        # ร้านไม่มีของในคลังเลย -> บังคับเป็นคนมาขายของ 100%
+        is_buyer = False
 
     current_games[f"{pin}_last_trans"] = "buy" if is_buyer else "sell"
 
