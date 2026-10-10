@@ -1,7 +1,6 @@
 import os
 import random
 import re
-import sqlite3
 import json
 import hmac
 import hashlib
@@ -11,6 +10,7 @@ import secrets
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from groq import Groq
 from dotenv import load_dotenv
+import db
 
 load_dotenv()
 
@@ -24,15 +24,8 @@ except Exception as e:  # ไม่มี GROQ_API_KEY -> อย่าให้�
     print("Groq init failed:", e)
     client = None
 
-if os.environ.get("VERCEL"):
-    DB_FILE = '/tmp/pawnshop.db'
-else:
-    DB_FILE = 'pawnshop.db'
-
 def get_db():
-    conn = sqlite3.connect(DB_FILE, timeout=10)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return db.get_sqlite_conn()
 
 # ---------------------------------------------------------------------------
 # Signed tokens (save game + customer session) เก็บไว้ฝั่ง Client (localStorage)
@@ -73,7 +66,8 @@ def read_token(token):
 
 SHOP_FIELDS = ["nickname", "money", "day", "reputation", "customers_left",
                "guard_level", "repair_level", "forger_level", "ad_level",
-               "version", "active_customer"]
+               "version", "active_customer",
+               "loan_remaining", "loan_daily", "loan_days_left", "loan_principal"]
 INV_FIELDS = ["name", "value", "true_value", "bought_price", "image"]
 
 def lvl(shop, key):
@@ -83,55 +77,49 @@ def lvl(shop, key):
     except (TypeError, ValueError):
         return 0
 
-def build_save(conn, pin):
-    c = conn.cursor()
-    c.execute('SELECT * FROM shop WHERE pin = ?', (pin,))
-    row = c.fetchone()
-    if not row:
+def build_save(conn_or_pin, pin=None):
+    target_pin = pin if pin is not None else conn_or_pin
+    if not target_pin or not isinstance(target_pin, str):
         return None
-    shop = dict(row)
-    c.execute('SELECT * FROM inventory WHERE shop_pin = ? ORDER BY id', (pin,))
-    inv = [{k: r[k] for k in ["id"] + INV_FIELDS} for r in c.fetchall()]
-    return make_token({"t": "save", "pin": pin, "shop": {k: shop.get(k) for k in SHOP_FIELDS}, "inv": inv})
+    shop = db.get_shop(target_pin)
+    if not shop:
+        return None
+    inv = db.get_inventory(target_pin)
+    inv_data = [{k: r.get(k) for k in ["id"] + INV_FIELDS} for r in inv]
+    return make_token({"t": "save", "pin": target_pin, "shop": {k: shop.get(k) for k in SHOP_FIELDS}, "inv": inv_data})
 
-def ensure_shop(conn, pin, save_token=None):
+def ensure_shop(conn_or_pin, pin_or_token=None, save_token=None):
     """คืนค่า shop (dict) หรือ None
     ถ้า instance นี้ไม่มีข้อมูล หรือข้อมูลเก่ากว่าเซฟของ Client -> กู้คืนจากเซฟอัตโนมัติ"""
-    if not pin:
+    if isinstance(conn_or_pin, str):
+        target_pin = conn_or_pin
+        token = pin_or_token
+    else:
+        target_pin = pin_or_token
+        token = save_token
+    if not target_pin:
         return None
-    c = conn.cursor()
-    c.execute('SELECT * FROM shop WHERE pin = ?', (pin,))
-    row = c.fetchone()
 
-    snap = read_token(save_token)
-    if snap and (snap.get("t") != "save" or snap.get("pin") != pin):
+    shop = db.get_shop(target_pin)
+    snap = read_token(token)
+    if snap and (snap.get("t") != "save" or snap.get("pin") != target_pin):
         snap = None
 
-    if snap and (row is None or (row["version"] or 0) < (snap["shop"].get("version") or 0)):
-        s = snap["shop"]
-        c.execute('DELETE FROM shop WHERE pin = ?', (pin,))
-        c.execute('DELETE FROM inventory WHERE shop_pin = ?', (pin,))
-        c.execute('''INSERT INTO shop (pin, nickname, money, day, reputation, customers_left,
-                     guard_level, repair_level, forger_level, ad_level, version, active_customer)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                  (pin, s.get("nickname"), s.get("money", 100000), s.get("day", 1), s.get("reputation", 10),
-                   s.get("customers_left", 5), s.get("guard_level", 0), s.get("repair_level", 0),
-                   s.get("forger_level", 0), s.get("ad_level", 0), s.get("version", 0), s.get("active_customer")))
-        for it in snap.get("inv", []):
-            vals = (it.get("name"), it.get("value", 0), it.get("true_value", 0), it.get("bought_price", 0), it.get("image"), pin)
-            try:
-                c.execute('INSERT INTO inventory (id, name, value, true_value, bought_price, image, shop_pin) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                          (it.get("id"),) + vals)
-            except sqlite3.IntegrityError:
-                c.execute('INSERT INTO inventory (name, value, true_value, bought_price, image, shop_pin) VALUES (?, ?, ?, ?, ?, ?)', vals)
-        conn.commit()
-        c.execute('SELECT * FROM shop WHERE pin = ?', (pin,))
-        row = c.fetchone()
+    if snap and (shop is None or (shop.get("version") or 0) < (snap["shop"].get("version") or 0)):
+        db.restore_shop_and_inventory(target_pin, snap["shop"], snap.get("inv", []))
+        shop = db.get_shop(target_pin)
 
-    return dict(row) if row else None
+    if shop and snap and snap.get("shop"):
+        for k in ["loan_remaining", "loan_daily", "loan_days_left", "loan_principal"]:
+            if k in snap["shop"] and (shop.get(k) is None):
+                shop[k] = snap["shop"][k]
 
-def bump_version(c, pin):
-    c.execute('UPDATE shop SET version = COALESCE(version, 0) + 1 WHERE pin = ?', (pin,))
+    return shop
+
+def bump_version(c_or_pin=None, pin=None):
+    target_pin = pin if pin is not None else c_or_pin
+    if target_pin and isinstance(target_pin, str):
+        db.bump_shop_version(target_pin)
 
 def req_json():
     return request.get_json(silent=True) or {}
@@ -167,41 +155,7 @@ def llm(messages):
     return clean_llm(completion.choices[0].message.content)
 
 def init_db():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS shop (id INTEGER PRIMARY KEY, money INTEGER, day INTEGER)''')
-    
-    # Add new columns safely
-    new_cols = [
-        ('reputation', 'INTEGER DEFAULT 10'),
-        ('customers_left', 'INTEGER DEFAULT 5'),
-        ('guard_level', 'INTEGER DEFAULT 0'),
-        ('repair_level', 'INTEGER DEFAULT 0'),
-        ('forger_level', 'INTEGER DEFAULT 0'),
-        ('ad_level', 'INTEGER DEFAULT 0'),
-        ('pin', 'TEXT'),
-        ('nickname', 'TEXT'),
-        ('version', 'INTEGER DEFAULT 0'),
-        ('active_customer', 'TEXT')
-    ]
-    for col, definition in new_cols:
-        try:
-            c.execute(f'ALTER TABLE shop ADD COLUMN {col} {definition}')
-        except:
-            pass
-            
-    c.execute('''CREATE TABLE IF NOT EXISTS inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, value INTEGER, bought_price INTEGER, image TEXT)''')
-    try:
-        c.execute('ALTER TABLE inventory ADD COLUMN true_value INTEGER DEFAULT 0')
-    except:
-        pass
-    try:
-        c.execute('ALTER TABLE inventory ADD COLUMN shop_pin TEXT')
-    except:
-        pass
-    
-    conn.commit()
-    conn.close()
+    db.init_db()
 
 init_db()
 
@@ -289,18 +243,11 @@ def register():
     if len(pin) != 6 or not pin.isdigit():
         return jsonify({"status": "error", "message": "กรุณาตั้งรหัส PIN ให้ครบ 6 หลัก (ตัวเลขเท่านั้น)"})
 
-    conn = get_db()
-    try:
-        c = conn.cursor()
-        c.execute('SELECT pin FROM shop WHERE pin = ?', (pin,))
-        if c.fetchone():
-            return jsonify({"status": "error", "message": "รหัส PIN นี้ถูกใช้งานแล้ว กรุณาใช้รหัสอื่น"})
+    if db.get_shop(pin):
+        return jsonify({"status": "error", "message": "รหัส PIN นี้ถูกใช้งานแล้ว กรุณาใช้รหัสอื่น"})
 
-        c.execute('INSERT INTO shop (pin, nickname, money, day, reputation, customers_left, version) VALUES (?, ?, 100000, 1, 10, 5, 1)', (pin, nickname))
-        conn.commit()
-        return jsonify({"status": "ok", "pin": pin, "nickname": nickname, "save": build_save(conn, pin)})
-    finally:
-        conn.close()
+    db.create_shop(pin, nickname)
+    return jsonify({"status": "ok", "pin": pin, "nickname": nickname, "save": build_save(pin)})
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -309,14 +256,10 @@ def login():
     if not pin:
         return jsonify({"status": "error", "message": "PIN is required"})
 
-    conn = get_db()
-    try:
-        shop = ensure_shop(conn, pin, data.get("save"))
-        if shop:
-            return jsonify({"status": "ok", "nickname": shop.get("nickname"), "pin": pin, "save": build_save(conn, pin)})
-        return jsonify({"status": "error", "message": "ไม่พบ PIN นี้ในระบบ"})
-    finally:
-        conn.close()
+    shop = ensure_shop(pin, data.get("save"))
+    if shop:
+        return jsonify({"status": "ok", "nickname": shop.get("nickname"), "pin": pin, "save": build_save(pin)})
+    return jsonify({"status": "error", "message": "ไม่พบ PIN นี้ในระบบ"})
 
 @app.route("/api/load_game", methods=["GET", "POST"])
 def load_game():
@@ -330,127 +273,246 @@ def load_game():
     if not pin:
         return jsonify({"status": "error", "message": "PIN is required"})
 
-    conn = get_db()
-    try:
-        shop = ensure_shop(conn, pin, save)
-        if not shop:
-            return shop_not_found()
+    shop = ensure_shop(pin, save)
+    if not shop:
+        return shop_not_found()
 
-        c = conn.cursor()
-        c.execute('SELECT * FROM inventory WHERE shop_pin = ? ORDER BY id', (pin,))
-        inv = [dict(row) for row in c.fetchall()]
+    inv = db.get_inventory(pin)
+    is_bankrupt = bool(int(shop.get("loan_remaining") or 0) > 0 and (shop.get("reputation") if shop.get("reputation") is not None else 10) <= 0)
 
-        return jsonify({
-            "status": "ok",
-            "money": shop["money"],
-            "day": shop["day"],
-            "reputation": shop.get("reputation") if shop.get("reputation") is not None else 10,
-            "customers_left": shop.get("customers_left") if shop.get("customers_left") is not None else 5,
-            "nickname": shop.get("nickname") or "Unknown",
-            "staff": {
-                "guard": lvl(shop, "guard_level"),
-                "repair": lvl(shop, "repair_level"),
-                "forger": lvl(shop, "forger_level"),
-                "ad": lvl(shop, "ad_level")
-            },
-            "inventory": inv,
-            "save": build_save(conn, pin)
-        })
-    finally:
-        conn.close()
+    return jsonify({
+        "status": "ok",
+        "bankrupt": is_bankrupt,
+        "money": shop["money"],
+        "day": shop["day"],
+        "reputation": shop.get("reputation") if shop.get("reputation") is not None else 10,
+        "customers_left": shop.get("customers_left") if shop.get("customers_left") is not None else 5,
+        "nickname": shop.get("nickname") or "Unknown",
+        "loan": {
+            "remaining": int(shop.get("loan_remaining") or 0),
+            "daily": int(shop.get("loan_daily") or 0),
+            "days_left": int(shop.get("loan_days_left") or 0),
+            "principal": int(shop.get("loan_principal") or 0)
+        },
+        "staff": {
+            "guard": lvl(shop, "guard_level"),
+            "repair": lvl(shop, "repair_level"),
+            "forger": lvl(shop, "forger_level"),
+            "ad": lvl(shop, "ad_level")
+        },
+        "inventory": inv,
+        "save": build_save(pin)
+    })
 
 @app.route("/api/end_day", methods=["POST"])
 def end_day():
     data = req_json()
     pin = data.get("pin")
 
-    conn = get_db()
-    try:
-        shop = ensure_shop(conn, pin, data.get("save"))
-        if not shop:
-            return shop_not_found()
-        c = conn.cursor()
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
 
-        # กันการกดซ้ำ/ส่งคำขอซ้ำ (เช่นเน็ต iPad กระตุก) ทำให้ข้ามวันสองรอบ
-        if (shop.get("customers_left") or 0) > 0:
-            return jsonify({"status": "error", "message": "ยังมีลูกค้ารอคิวอยู่", "save": build_save(conn, pin)})
+    # กันการกดซ้ำ/ส่งคำขอซ้ำ (เช่นเน็ต iPad กระตุก) ทำให้ข้ามวันสองรอบ
+    if (shop.get("customers_left") or 0) > 0:
+        return jsonify({"status": "error", "message": "ยังมีลูกค้ารอคิวอยู่", "save": build_save(pin)})
 
-        rent = 1000
+    rent = 1000
 
-        g_level = lvl(shop, "guard_level")
-        r_level = lvl(shop, "repair_level")
-        f_level = lvl(shop, "forger_level")
-        ad_level = lvl(shop, "ad_level")
+    g_level = lvl(shop, "guard_level")
+    r_level = lvl(shop, "repair_level")
+    f_level = lvl(shop, "forger_level")
+    ad_level = lvl(shop, "ad_level")
 
-        wages = [0, 1000, 2000, 3000][g_level] + [0, 1500, 3000, 5000][r_level] \
-              + [0, 2000, 4000, 7000][f_level] + [0, 1000, 2500, 5000][ad_level]
+    wages = [0, 1000, 2000, 3000][g_level] + [0, 1500, 3000, 5000][r_level] \
+          + [0, 2000, 4000, 7000][f_level] + [0, 1000, 2500, 5000][ad_level]
 
-        total_expenses = rent + wages
-        event = dict(random.choice(EVENTS))
-        event_logs = []
+    total_expenses = rent + wages
+    event = dict(random.choice(EVENTS))
+    event_logs = []
 
-        # Guard protection
-        if event["name"] == "โจรปล้นร้าน!" and g_level > 0:
-            reward = [0, 1000, 2000, 5000][g_level]
-            event = {"type": "good", "name": "ยามจับโจรได้!", "desc": f"โจรพยายามงัดร้าน แต่ยามที่คุณจ้างไว้ (Lv.{g_level}) จับได้แถมได้รางวัลนำจับ!", "money_mod": reward, "rep_mod": 5}
-        elif event["name"] == "ค่าคุ้มครอง" and g_level >= 2:
-            event = {"type": "neutral", "name": "ยามไล่นักเลง", "desc": f"นักเลงมาเก็บค่าคุ้มครอง แต่เจอยามล่ำบึ้ก (Lv.{g_level}) ไล่ตะเพิดกลับไป", "money_mod": 0, "rep_mod": 2}
+    # Guard protection
+    if event["name"] == "โจรปล้นร้าน!" and g_level > 0:
+        reward = [0, 1000, 2000, 5000][g_level]
+        event = {"type": "good", "name": "ยามจับโจรได้!", "desc": f"โจรพยายามงัดร้าน แต่ยามที่คุณจ้างไว้ (Lv.{g_level}) จับได้แถมได้รางวัลนำจับ!", "money_mod": reward, "rep_mod": 5}
+    elif event["name"] == "ค่าคุ้มครอง" and g_level >= 2:
+        event = {"type": "neutral", "name": "ยามไล่นักเลง", "desc": f"นักเลงมาเก็บค่าคุ้มครอง แต่เจอยามล่ำบึ้ก (Lv.{g_level}) ไล่ตะเพิดกลับไป", "money_mod": 0, "rep_mod": 2}
 
-        new_money = shop["money"] - total_expenses + event["money_mod"]
-        new_rep = (shop.get("reputation") or 0) + event["rep_mod"]
+    new_money = shop["money"] - total_expenses + event["money_mod"]
+    new_rep = (shop.get("reputation") or 0) + event["rep_mod"]
 
-        # Advertiser passive buff
-        if ad_level > 0:
-            rep_buff = [0, 1, 2, 4][ad_level]
-            new_rep += rep_buff
-            event_logs.append(f"นักโฆษณา (Lv.{ad_level}) ช่วยโปรโมทร้าน ได้ชื่อเสียงเพิ่ม +{rep_buff}")
+    # --- ระบบหักชำระค่างวดเงินกู้ (Loan Installment) ---
+    loan_remaining = int(shop.get("loan_remaining") or 0)
+    loan_daily = int(shop.get("loan_daily") or 0)
+    loan_days_left = int(shop.get("loan_days_left") or 0)
+    loan_paid = 0
 
-        # Repairman passive buff
-        if r_level > 0:
-            c.execute("SELECT * FROM inventory WHERE shop_pin = ? AND name LIKE ?", (pin, "[พัง] %"))
-            broken_items = c.fetchall()
+    if loan_remaining > 0:
+        installment = min(loan_daily if loan_daily > 0 else loan_remaining, loan_remaining)
+        if new_money >= installment:
+            new_money -= installment
+            loan_paid = installment
+            loan_remaining -= installment
+            loan_days_left = max(0, loan_days_left - 1)
+            total_expenses += installment
+            if loan_remaining <= 0:
+                loan_remaining = 0
+                loan_daily = 0
+                loan_days_left = 0
+                event_logs.append(f"💳 ชำระค่างวดเงินกู้ ฿{installment:,} ปิดยอดหนี้สินทั้งหมดเรียบร้อยแล้ว! 🎉")
+            else:
+                event_logs.append(f"💳 ชำระค่างวดเงินกู้ประจำวัน ฿{installment:,} (หนี้คงเหลือ ฿{loan_remaining:,}, เหลือ {loan_days_left} งวด)")
+        else:
+            # เงินไม่พอจ่ายค่างวด -> ดอกเบี้ยปรับ 10%
+            penalty = int(installment * 0.10)
+            loan_remaining += penalty
+            rep_loss = 5
+            if g_level >= 2:
+                rep_loss = 2
+                event_logs.append(f"⚠️ เงินไม่พอจ่ายค่างวด ฿{installment:,}! ดอกเบี้ยปรับ +฿{penalty:,} แต่ยาม (Lv.{g_level}) ช่วยคุ้มกัน เสียชื่อเสียงเพียง -{rep_loss}")
+            else:
+                event_logs.append(f"⚠️ เบี้ยวหนี้! เงินไม่พอจ่ายค่างวด ฿{installment:,} ถูกคิดดอกเบี้ยปรับเพิ่ม +฿{penalty:,} และเสียชื่อเสียง -{rep_loss}!")
+            new_rep = max(0, new_rep - rep_loss)
 
-            items_to_fix = 0
-            if r_level == 1 and random.random() > 0.5: items_to_fix = 1
-            elif r_level == 2: items_to_fix = 1
-            elif r_level == 3: items_to_fix = 999
+    # Advertiser passive buff
+    if ad_level > 0:
+        rep_buff = [0, 1, 2, 4][ad_level]
+        new_rep += rep_buff
+        event_logs.append(f"นักโฆษณา (Lv.{ad_level}) ช่วยโปรโมทร้าน ได้ชื่อเสียงเพิ่ม +{rep_buff}")
 
-            fixed_count = 0
-            for b_item in broken_items:
-                if fixed_count >= items_to_fix: break
-                new_name = b_item["name"].replace("[พัง] ", "", 1)
-                new_val = int(b_item["value"] / 0.3)
-                c.execute('UPDATE inventory SET name = ?, value = ?, true_value = ? WHERE id = ?', (new_name, new_val, new_val, b_item["id"]))
-                fixed_count += 1
+    # Repairman passive buff
+    if r_level > 0:
+        all_inv = db.get_inventory(pin)
+        broken_items = [it for it in all_inv if str(it.get("name", "")).startswith("[พัง] ")]
 
-            if fixed_count > 0:
-                event_logs.append(f"ช่างซ่อม (Lv.{r_level}) แอบซ่อมของพังให้คุณไป {fixed_count} ชิ้นเมื่อคืนนี้!")
+        items_to_fix = 0
+        if r_level == 1 and random.random() > 0.5: items_to_fix = 1
+        elif r_level == 2: items_to_fix = 1
+        elif r_level == 3: items_to_fix = 999
 
-        new_day = shop["day"] + 1
-        # Queue size based on reputation (min 3, max 20)
-        new_queue = min(20, max(3, 3 + (new_rep // 10)))
+        fixed_count = 0
+        for b_item in broken_items[:items_to_fix]:
+            new_name = b_item["name"].replace("[พัง] ", "", 1)
+            new_val = int(b_item["value"] / 0.3)
+            db.update_inventory_item(b_item["id"], name=new_name, value=new_val, true_value=new_val)
+            fixed_count += 1
 
-        c.execute('''UPDATE shop
-                     SET money = ?, day = ?, reputation = ?, customers_left = ?, active_customer = NULL
-                     WHERE pin = ?''', (new_money, new_day, new_rep, new_queue, pin))
-        bump_version(c, pin)
-        conn.commit()
+        if fixed_count > 0:
+            event_logs.append(f"ช่างซ่อม (Lv.{r_level}) แอบซ่อมของพังให้คุณไป {fixed_count} ชิ้นเมื่อคืนนี้!")
 
-        return jsonify({
-            "status": "ok",
-            "expenses": total_expenses,
-            "rent": rent,
-            "wages": wages,
-            "event": event,
-            "event_logs": event_logs,
-            "new_day": new_day,
-            "new_queue": new_queue,
-            "new_money": new_money,
-            "new_rep": new_rep,
-            "save": build_save(conn, pin)
-        })
-    finally:
-        conn.close()
+    # Bankruptcy check: หากชื่อเสียงเหลือ 0 จากการเบี้ยวหนี้ หรือชื่อเสียงหมดร้าน
+    is_bankrupt = False
+    bankrupt_reason = ""
+    if new_rep <= 0:
+        is_bankrupt = True
+        new_rep = 0
+        if loan_remaining > 0:
+            bankrupt_reason = "คุณเบี้ยวหนี้จนชื่อเสียงร้านลดลงเหลือ 0! เจ้าหนี้นอกระบบบุกมายึดร้านและกวาดทรัพย์สินทั้งหมด กิจการของคุณล้มละลาย!"
+            event_logs.append("💀 ล้มละลาย! ชื่อเสียงร้านเหลือ 0 จากการผิดนัดชำระหนี้เงินกู้")
+        else:
+            bankrupt_reason = "ชื่อเสียงร้านของคุณตกต่ำจนเหลือ 0! ไม่มีลูกค้าคนไหนกล้าเข้าร้านอีกต่อไป กิจการของคุณล้มละลาย!"
+            event_logs.append("💀 ล้มละลาย! ชื่อเสียงร้านเหลือ 0")
+
+    new_day = shop["day"] + 1
+    # Queue size based on reputation (min 3, max 20)
+    new_queue = min(20, max(3, 3 + (new_rep // 10)))
+
+    db.update_shop(pin, money=new_money, day=new_day, reputation=new_rep, customers_left=new_queue, active_customer=None,
+                   loan_remaining=loan_remaining, loan_daily=loan_daily, loan_days_left=loan_days_left)
+    bump_version(pin)
+
+    return jsonify({
+        "status": "ok",
+        "bankrupt": is_bankrupt,
+        "bankrupt_reason": bankrupt_reason,
+        "expenses": total_expenses,
+        "rent": rent,
+        "wages": wages,
+        "loan_paid": loan_paid,
+        "loan_remaining": loan_remaining,
+        "loan_days_left": loan_days_left,
+        "event": event,
+        "event_logs": event_logs,
+        "new_day": new_day,
+        "new_queue": new_queue,
+        "new_money": new_money,
+        "new_rep": new_rep,
+        "save": build_save(pin)
+    })
+
+@app.route("/api/pay_loan", methods=["POST"])
+def pay_loan():
+    data = req_json()
+    pin = data.get("pin")
+    amount = int(data.get("amount") or 0)
+
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+
+    loan_remaining = int(shop.get("loan_remaining") or 0)
+    if loan_remaining <= 0:
+        return jsonify({"status": "error", "message": "คุณไม่มีหนี้สินที่ต้องชำระ"})
+
+    if amount <= 0:
+        return jsonify({"status": "error", "message": "จำนวนเงินไม่ถูกต้อง"})
+
+    pay_amount = min(amount, loan_remaining, shop["money"])
+    if pay_amount <= 0:
+        return jsonify({"status": "error", "message": "เงินในกระเป๋าของคุณไม่เพียงพอ"})
+
+    new_money = shop["money"] - pay_amount
+    new_remaining = loan_remaining - pay_amount
+    new_daily = int(shop.get("loan_daily") or 0)
+    new_days_left = int(shop.get("loan_days_left") or 0)
+
+    if new_remaining <= 0:
+        new_remaining = 0
+        new_daily = 0
+        new_days_left = 0
+        msg = f"ชำระเงิน ฿{pay_amount:,} ปิดยอดหนี้สินทั้งหมดสำเร็จแล้ว! 🎉"
+    else:
+        new_daily = min(new_daily, new_remaining)
+        msg = f"ชำระหนี้ ฿{pay_amount:,} สำเร็จ! ยอดหนี้คงเหลือ ฿{new_remaining:,}"
+
+    db.update_shop(pin, money=new_money, loan_remaining=new_remaining, loan_daily=new_daily, loan_days_left=new_days_left)
+    bump_version(pin)
+
+    return jsonify({
+        "status": "ok",
+        "message": msg,
+        "paid": pay_amount,
+        "new_money": new_money,
+        "loan": {
+            "remaining": new_remaining,
+            "daily": new_daily,
+            "days_left": new_days_left
+        },
+        "save": build_save(pin)
+    })
+
+@app.route("/api/restart_game", methods=["POST"])
+def restart_game():
+    data = req_json()
+    pin = data.get("pin")
+
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+
+    db.update_shop(pin, money=100000, day=1, reputation=10, customers_left=5,
+                   guard_level=0, repair_level=0, forger_level=0, ad_level=0,
+                   active_customer=None,
+                   loan_remaining=0, loan_daily=0, loan_days_left=0, loan_principal=0)
+    db.clear_inventory(pin)
+    bump_version(pin)
+    current_games.pop(pin, None)
+
+    return jsonify({
+        "status": "ok",
+        "message": "รีเซ็ตร้านค้าเพื่อเริ่มต้นใหม่เรียบร้อยแล้ว",
+        "save": build_save(pin)
+    })
 
 @app.route("/api/upgrade_staff", methods=["POST"])
 def upgrade_staff():
@@ -462,37 +524,31 @@ def upgrade_staff():
     if role not in valid_roles:
         return jsonify({"status": "error", "message": "Role not found"})
 
-    conn = get_db()
-    try:
-        shop = ensure_shop(conn, pin, data.get("save"))
-        if not shop:
-            return shop_not_found()
-        c = conn.cursor()
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
 
-        col = f"{role}_level"
-        current_lvl = lvl(shop, col)
+    col = f"{role}_level"
+    current_lvl = lvl(shop, col)
 
-        if current_lvl >= 3:
-            return jsonify({"status": "error", "message": "ระดับสูงสุดแล้ว"})
+    if current_lvl >= 3:
+        return jsonify({"status": "error", "message": "ระดับสูงสุดแล้ว"})
 
-        costs_map = {
-            "guard": [10000, 25000, 50000],
-            "repair": [15000, 30000, 60000],
-            "forger": [30000, 60000, 100000],
-            "ad": [20000, 40000, 80000]
-        }
-        cost = costs_map[role][current_lvl]
+    costs_map = {
+        "guard": [10000, 25000, 50000],
+        "repair": [15000, 30000, 60000],
+        "forger": [30000, 60000, 100000],
+        "ad": [20000, 40000, 80000]
+    }
+    cost = costs_map[role][current_lvl]
 
-        if shop["money"] < cost:
-            return jsonify({"status": "error", "message": f"เงินไม่พอ (ต้องการ {cost:,} บาท)"})
+    if shop["money"] < cost:
+        return jsonify({"status": "error", "message": f"เงินไม่พอ (ต้องการ {cost:,} บาท)"})
 
-        c.execute(f'UPDATE shop SET money = money - ?, {col} = ? WHERE pin = ?', (cost, current_lvl + 1, pin))
-        bump_version(c, pin)
-        conn.commit()
+    db.update_shop(pin, money=shop["money"] - cost, **{col: current_lvl + 1})
+    bump_version(pin)
 
-        return jsonify({"status": "ok", "message": f"อัปเกรดสำเร็จเป็นระดับ {current_lvl + 1}!", "save": build_save(conn, pin)})
-    finally:
-        conn.close()
+    return jsonify({"status": "ok", "message": f"อัปเกรดสำเร็จเป็นระดับ {current_lvl + 1}!", "save": build_save(pin)})
 
 def load_session(pin, token):
     """ดึงสถานะลูกค้าคนปัจจุบัน: จาก token ของ Client ก่อน (ทนต่อการรีสตาร์ท/หลาย instance) แล้วค่อย cache"""
@@ -510,24 +566,14 @@ def new_customer():
     data = req_json()
     pin = data.get("pin")
 
-    conn = get_db()
-    try:
-        shop = ensure_shop(conn, pin, data.get("save"))
-        if not shop:
-            conn.close()
-            return shop_not_found()
-        c = conn.cursor()
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
 
-        if (shop.get("customers_left") or 0) <= 0:
-            resp = jsonify({"status": "end_of_day", "save": build_save(conn, pin)})
-            conn.close()
-            return resp
+    if (shop.get("customers_left") or 0) <= 0:
+        return jsonify({"status": "end_of_day", "save": build_save(pin)})
 
-        c.execute('SELECT * FROM inventory WHERE shop_pin = ?', (pin,))
-        inventory = [dict(row) for row in c.fetchall()]
-    except Exception:
-        conn.close()
-        raise
+    inventory = db.get_inventory(pin)
 
     cid = secrets.token_hex(8)
     game = {
@@ -653,34 +699,29 @@ def new_customer():
     ]
 
     try:
-        try:
-            response = llm(game["history"])
-        except Exception as e:
-            # AI ล่ม/timeout -> ไม่หักคิวลูกค้า ให้กดเรียกใหม่ได้
-            return jsonify({"status": "error", "message": f"AI ไม่ตอบสนอง กรุณากดเรียกลูกค้าใหม่ ({e})", "save": build_save(conn, pin)})
+        response = llm(game["history"])
+    except Exception as e:
+        # AI ล่ม/timeout -> ไม่หักคิวลูกค้า ให้กดเรียกใหม่ได้
+        return jsonify({"status": "error", "message": f"AI ไม่ตอบสนอง กรุณากดเรียกลูกค้าใหม่ ({e})", "save": build_save(pin)})
 
-        if not strip_tags(response):
-            response = "สวัสดีครับ วันนี้เอาของมาให้ดูครับ" if game["transaction_type"] == "sell" else "สวัสดีครับ ขอดูของชิ้นนี้หน่อยครับ"
-        game["history"].append({"role": "assistant", "content": response})
+    if not strip_tags(response):
+        response = "สวัสดีครับ วันนี้เอาของมาให้ดูครับ" if game["transaction_type"] == "sell" else "สวัสดีครับ ขอดูของชิ้นนี้หน่อยครับ"
+    game["history"].append({"role": "assistant", "content": response})
 
-        # หักคิวหลังจาก AI ตอบสำเร็จเท่านั้น
-        c = conn.cursor()
-        c.execute('UPDATE shop SET customers_left = customers_left - 1, active_customer = ? WHERE pin = ?', (cid, pin))
-        bump_version(c, pin)
-        conn.commit()
+    # หักคิวหลังจาก AI ตอบสำเร็จเท่านั้น
+    db.update_shop(pin, customers_left=max(0, (shop.get("customers_left") or 0) - 1), active_customer=cid)
+    bump_version(pin)
 
-        return jsonify({
-            "status": "ok",
-            "type": game["transaction_type"],
-            "item": {k: item.get(k) for k in ("name", "value", "image", "bought_price")},
-            "avatar": avatar,
-            "message": strip_tags(response),
-            "session": save_session(pin, game),
-            "customers_left": max(0, (shop.get("customers_left") or 0) - 1),
-            "save": build_save(conn, pin)
-        })
-    finally:
-        conn.close()
+    return jsonify({
+        "status": "ok",
+        "type": game["transaction_type"],
+        "item": {k: item.get(k) for k in ("name", "value", "image", "bought_price")},
+        "avatar": avatar,
+        "message": strip_tags(response),
+        "session": save_session(pin, game),
+        "customers_left": max(0, (shop.get("customers_left") or 0) - 1),
+        "save": build_save(pin)
+    })
 
 @app.route("/api/appraise", methods=["POST"])
 def appraise_item():
@@ -697,34 +738,28 @@ def appraise_item():
     if game.get("appraised"):
         return jsonify({"status": "error", "message": "ตรวจสอบสินค้าชิ้นนี้ไปแล้ว"})
 
-    conn = get_db()
-    try:
-        shop = ensure_shop(conn, pin, data.get("save"))
-        if not shop:
-            return shop_not_found()
-        if shop.get("active_customer") != game.get("cid"):
-            return jsonify({"status": "error", "message": "Game session not found"})
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+    if shop.get("active_customer") != game.get("cid"):
+        return jsonify({"status": "error", "message": "Game session not found"})
 
-        APPRAISAL_COST = 500
-        if shop["money"] < APPRAISAL_COST:
-            return jsonify({"status": "error", "message": "เงินไม่พอค่าตรวจสอบ (ต้องใช้ ฿500)"})
+    APPRAISAL_COST = 500
+    if shop["money"] < APPRAISAL_COST:
+        return jsonify({"status": "error", "message": "เงินไม่พอค่าตรวจสอบ (ต้องใช้ ฿500)"})
 
-        c = conn.cursor()
-        c.execute('UPDATE shop SET money = money - ? WHERE pin = ?', (APPRAISAL_COST, pin))
-        bump_version(c, pin)
-        conn.commit()
+    db.update_shop(pin, money=shop["money"] - APPRAISAL_COST)
+    bump_version(pin)
 
-        game["appraised"] = True
-        return jsonify({
-            "status": "ok",
-            "is_fake": bool(game.get("is_fake", False)),
-            "true_value": game.get("true_value") or game["value"],
-            "cost": APPRAISAL_COST,
-            "session": save_session(pin, game),
-            "save": build_save(conn, pin)
-        })
-    finally:
-        conn.close()
+    game["appraised"] = True
+    return jsonify({
+        "status": "ok",
+        "is_fake": bool(game.get("is_fake", False)),
+        "true_value": game.get("true_value") or game["value"],
+        "cost": APPRAISAL_COST,
+        "session": save_session(pin, game),
+        "save": build_save(pin)
+    })
 
 @app.route("/api/chat", methods=["POST"])
 def chat():
@@ -732,104 +767,203 @@ def chat():
     pin = data.get("pin")
     user_message = str(data.get("message") or "").strip()[:500]
 
-    if not user_message:
-        return jsonify({"status": "error", "message": "กรุณาพิมพ์ข้อความ"})
-
     game = load_session(pin, data.get("session"))
     if not game:
         return jsonify({"status": "error", "message": "Game session not found"})
 
-    conn = get_db()
-    try:
-        shop = ensure_shop(conn, pin, data.get("save"))
-        if not shop:
-            return shop_not_found()
-        if shop.get("active_customer") != game.get("cid"):
-            # ลูกค้าคนนี้ปิดดีลไปแล้ว หรือเป็นข้อมูลเก่า
-            return jsonify({"status": "error", "message": "Game session not found"})
+    shop = ensure_shop(pin, data.get("save"))
+    if not shop:
+        return shop_not_found()
+    if shop.get("active_customer") != game.get("cid"):
+        # ลูกค้าคนนี้ปิดดีลไปแล้ว หรือเป็นข้อมูลเก่า
+        return jsonify({"status": "error", "message": "Game session not found"})
 
-        history = list(game["history"]) + [{"role": "user", "content": user_message}]
+    # --- กรณีผู้เล่นกดยืนยันรับข้อเสนอเงินกู้ (Accept Loan) ---
+    if data.get("accept_loan"):
+        pending = game.get("pending_loan")
+        if not pending:
+            return jsonify({"status": "error", "message": "ไม่พบข้อเสนอเงินกู้ที่รอดำเนินการ"})
 
-        try:
-            bot_response = llm(history)
-        except Exception as e:
-            # ไม่บันทึกข้อความลงประวัติ เพื่อให้ส่งใหม่ได้
-            return jsonify({"status": "error", "message": f"AI ไม่ตอบสนอง ลองส่งใหม่อีกครั้ง ({e})"})
+        item = game.get("item")
+        agreed_price = pending["agreed_price"]
+        deficit = pending["deficit"]
+        interest = pending["interest"]
+        total_debt = pending["total_debt"]
+        installments = pending.get("installments", 3)
 
-        if not bot_response:
-            bot_response = "อืม... ว่าไงนะครับ?"
-        history.append({"role": "assistant", "content": bot_response})
-        game["history"] = history
+        current_debt = int(shop.get("loan_remaining") or 0)
+        credit_limit = 200000 + (shop.get("reputation") or 10) * 20000
 
-        trans_type = game["transaction_type"]
-        accepted = False
-        rejected = bool(TAG_REJECT.search(bot_response))
-        agreed_price = 0
-
-        match = TAG_ACCEPT.search(bot_response)
-        if match:
-            try:
-                agreed_price = int(float(match.group(2).replace(',', '')))
-                accepted = agreed_price > 0
-            except ValueError:
-                accepted = False
-
-        clean_response = strip_tags(bot_response)
-        result = {
-            "status": "ok",
-            "message": clean_response,
-            "accepted": False,
-            "rejected": False,
-            "price": agreed_price,
-            "type": trans_type,
-            "item": None,
-        }
-
-        c = conn.cursor()
-        item = game["item"]
-
-        if accepted:
-            if trans_type == "sell":
-                # ลูกค้าขายของให้เรา -> เช็คเงินฝั่งเซิร์ฟเวอร์ก่อน (กันเงินติดลบ)
-                if shop["money"] < agreed_price:
-                    result["insufficient_funds"] = True
-                    result["rejected"] = True
-                else:
-                    c.execute('UPDATE shop SET money = money - ?, reputation = reputation + 1 WHERE pin = ?', (agreed_price, pin))
-                    c.execute('INSERT INTO inventory (name, value, true_value, bought_price, image, shop_pin) VALUES (?, ?, ?, ?, ?, ?)',
-                              (item["name"], game["value"], game["true_value"], agreed_price, item["image"], pin))
-                    result["accepted"] = True
-                    result["item"] = {k: item.get(k) for k in ("name", "value", "image")}
-            else:
-                # ลูกค้ามาซื้อของจากเรา -> ลบของออกจากคลังก่อน ถ้าลบได้จริงค่อยรับเงิน (กันขายของชิ้นเดิมซ้ำ)
-                c.execute('DELETE FROM inventory WHERE id = ? AND shop_pin = ? AND name = ?', (item.get("id", 0), pin, item["name"]))
-                if c.rowcount == 0:
-                    c.execute('''DELETE FROM inventory WHERE id = (
-                                   SELECT id FROM inventory WHERE shop_pin = ? AND name = ? AND bought_price = ? LIMIT 1)''',
-                              (pin, item["name"], item.get("bought_price", 0)))
-                if c.rowcount > 0:
-                    c.execute('UPDATE shop SET money = money + ?, reputation = reputation + 1 WHERE pin = ?', (agreed_price, pin))
-                    result["accepted"] = True
-                    result["item"] = {k: item.get(k) for k in ("name", "value", "image", "bought_price")}
-                else:
-                    result["item_missing"] = True
-                    result["rejected"] = True
-        elif rejected:
-            result["rejected"] = True
-
-        if result["accepted"] or result["rejected"]:
-            # ปิดดีล -> ลูกค้าคนนี้ใช้ต่อไม่ได้แล้ว
-            c.execute('UPDATE shop SET active_customer = NULL WHERE pin = ?', (pin,))
-            bump_version(c, pin)
-            conn.commit()
+        if (current_debt + total_debt) > credit_limit:
+            db.update_shop(pin, active_customer=None)
+            bump_version(pin)
             current_games.pop(pin, None)
-        else:
-            result["session"] = save_session(pin, game)
+            return jsonify({
+                "status": "ok",
+                "rejected": True,
+                "message": "วงเงินสินเชื่อของคุณเต็มแล้ว ไม่สามารถกู้เพิ่มได้",
+                "save": build_save(pin)
+            })
 
-        result["save"] = build_save(conn, pin)
-        return jsonify(result)
-    finally:
-        conn.close()
+        new_total_debt = current_debt + total_debt
+        new_daily = (new_total_debt + 2) // installments
+        new_principal = int(shop.get("loan_principal") or 0) + deficit
+
+        new_money = 0
+        new_rep = (shop.get("reputation") or 10) + 1
+        db.update_shop(pin, money=new_money, reputation=new_rep,
+                       loan_remaining=new_total_debt, loan_daily=new_daily,
+                       loan_days_left=installments, loan_principal=new_principal,
+                       active_customer=None)
+        db.add_inventory_item(pin, name=item["name"], value=game["value"], true_value=game["true_value"], bought_price=agreed_price, image=item["image"])
+        bump_version(pin)
+        current_games.pop(pin, None)
+
+        return jsonify({
+            "status": "ok",
+            "accepted": True,
+            "rejected": False,
+            "loan_taken": True,
+            "price": agreed_price,
+            "type": "sell",
+            "message": f"ตกลงทำสัญญาเงินกู้ ฿{deficit:,} (ดอกเบี้ย ฿{interest:,}) และรับซื้อ {item['name']} สำเร็จ!",
+            "loan_info": {
+                "borrowed": deficit,
+                "interest": interest,
+                "total_debt": total_debt,
+                "loan_remaining": new_total_debt,
+                "daily_payment": new_daily,
+                "days_left": installments
+            },
+            "item": {k: item.get(k) for k in ("name", "value", "image")},
+            "save": build_save(pin)
+        })
+
+    # --- กรณีผู้เล่นปฏิเสธข้อเสนอเงินกู้ (Decline Loan) ---
+    if data.get("decline_loan"):
+        db.update_shop(pin, active_customer=None)
+        bump_version(pin)
+        current_games.pop(pin, None)
+        return jsonify({
+            "status": "ok",
+            "rejected": True,
+            "message": "คุณปฏิเสธการกู้เงิน การซื้อขายจึงถูกยกเลิก",
+            "save": build_save(pin)
+        })
+
+    if not user_message:
+        return jsonify({"status": "error", "message": "กรุณาพิมพ์ข้อความ"})
+
+    history = list(game["history"]) + [{"role": "user", "content": user_message}]
+
+    try:
+        bot_response = llm(history)
+    except Exception as e:
+        # ไม่บันทึกข้อความลงประวัติ เพื่อให้ส่งใหม่ได้
+        return jsonify({"status": "error", "message": f"AI ไม่ตอบสนอง ลองส่งใหม่อีกครั้ง ({e})"})
+
+    if not bot_response:
+        bot_response = "อืม... ว่าไงนะครับ?"
+    history.append({"role": "assistant", "content": bot_response})
+    game["history"] = history
+
+    trans_type = game["transaction_type"]
+    accepted = False
+    rejected = bool(TAG_REJECT.search(bot_response))
+    agreed_price = 0
+
+    match = TAG_ACCEPT.search(bot_response)
+    if match:
+        try:
+            agreed_price = int(float(match.group(2).replace(',', '')))
+            accepted = agreed_price > 0
+        except ValueError:
+            accepted = False
+
+    clean_response = strip_tags(bot_response)
+    result = {
+        "status": "ok",
+        "message": clean_response,
+        "accepted": False,
+        "rejected": False,
+        "price": agreed_price,
+        "type": trans_type,
+        "item": None,
+    }
+
+    item = game["item"]
+
+    if accepted:
+        if trans_type == "sell":
+            # ลูกค้าขายของให้เรา -> เช็คเงินฝั่งเซิร์ฟเวอร์ก่อน
+            if shop["money"] < agreed_price:
+                deficit = agreed_price - shop["money"]
+                interest = int(deficit * 0.20)  # ดอกเบี้ย 20%
+                total_debt = deficit + interest
+                installments = 3
+                daily_pay = (total_debt + 2) // installments
+
+                current_debt = int(shop.get("loan_remaining") or 0)
+                credit_limit = 200000 + (shop.get("reputation") or 10) * 20000
+                can_loan = (current_debt + total_debt) <= credit_limit
+
+                # บันทึกข้อมูลข้อเสนอเงินกู้ไว้ใน session เผื่อผู้เล่นกดยืนยันกู้
+                game["pending_loan"] = {
+                    "agreed_price": agreed_price,
+                    "deficit": deficit,
+                    "interest": interest,
+                    "total_debt": total_debt,
+                    "daily_payment": daily_pay,
+                    "installments": installments
+                }
+
+                # ส่งข้อเสนอเงินกู้ให้ผู้เล่นตัดสินใจ (ลูกค้ายังรอคอยที่เคาน์เตอร์)
+                result["insufficient_funds"] = True
+                result["can_loan"] = can_loan
+                result["credit_limit_exceeded"] = not can_loan
+                result["loan_offer"] = {
+                    "deficit": deficit,
+                    "interest": interest,
+                    "total_debt": total_debt,
+                    "daily_payment": daily_pay,
+                    "installments": installments,
+                    "agreed_price": agreed_price,
+                    "current_money": shop["money"],
+                    "current_debt": current_debt,
+                    "credit_limit": credit_limit,
+                    "item_name": item["name"]
+                }
+                result["session"] = save_session(pin, game)
+                result["save"] = build_save(pin)
+                return jsonify(result)
+            else:
+                db.update_shop(pin, money=shop["money"] - agreed_price, reputation=(shop.get("reputation") or 10) + 1)
+                db.add_inventory_item(pin, name=item["name"], value=game["value"], true_value=game["true_value"], bought_price=agreed_price, image=item["image"])
+                result["accepted"] = True
+                result["item"] = {k: item.get(k) for k in ("name", "value", "image")}
+        else:
+            # ลูกค้ามาซื้อของจากเรา -> ลบของออกจากคลังก่อน ถ้าลบได้จริงค่อยรับเงิน (กันขายของชิ้นเดิมซ้ำ)
+            deleted = db.delete_inventory_item(pin, item_id=item.get("id"), name=item.get("name"), bought_price=item.get("bought_price"))
+            if deleted:
+                db.update_shop(pin, money=shop["money"] + agreed_price, reputation=(shop.get("reputation") or 10) + 1)
+                result["accepted"] = True
+                result["item"] = {k: item.get(k) for k in ("name", "value", "image", "bought_price")}
+            else:
+                result["item_missing"] = True
+                result["rejected"] = True
+    elif rejected:
+        result["rejected"] = True
+
+    if result["accepted"] or result["rejected"]:
+        # ปิดดีล -> ลูกค้าคนนี้ใช้ต่อไม่ได้แล้ว
+        db.update_shop(pin, active_customer=None)
+        bump_version(pin)
+        current_games.pop(pin, None)
+    else:
+        result["session"] = save_session(pin, game)
+
+    result["save"] = build_save(pin)
+    return jsonify(result)
 
 @app.errorhandler(Exception)
 def handle_error(e):

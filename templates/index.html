@@ -637,6 +637,7 @@
                 <div class="stat-box" title="ลูกค้าที่รอคิว"><i class="fas fa-users"></i> <span class="hide-text">คิว: </span><span id="queue-counter">5</span></div>
                 <div class="stat-box" title="ชื่อเสียงร้าน"><i class="fas fa-star" style="color:#EAB308;"></i> <span class="hide-text">ชื่อเสียง: </span><span id="rep-counter">10</span></div>
                 <div class="stat-box money" title="เงินทุน"><i class="fas fa-money-bill-wave" style="color:var(--success-color);"></i> <span class="hide-text">฿</span><span id="player-money">100,000</span></div>
+                <div class="stat-box debt" id="stat-debt-box" onclick="openRepayModal()" title="หนี้สินคงค้าง (กดเพื่อจัดการ/ชำระหนี้)" style="display: none; cursor: pointer; color: #ef4444; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; padding: 4px 10px; transition: all 0.2s;"><i class="fas fa-file-invoice-dollar" style="color: #ef4444;"></i> <span class="hide-text">หนี้: </span>฿<span id="player-debt">0</span></div>
             </div>
         </header>
 
@@ -720,6 +721,7 @@
             <div class="modal-body">
                 <p><i class="fas fa-home" style="color:var(--danger-color)"></i> ค่าเช่าร้าน: <span id="eod-rent" style="color:var(--danger-color)"></span></p>
                 <p><i class="fas fa-hard-hat" style="color:var(--danger-color)"></i> ค่าจ้างพนักงาน: <span id="eod-wages" style="color:var(--danger-color)"></span></p>
+                <p id="eod-loan-container" style="display: none;"><i class="fas fa-file-invoice-dollar" style="color:var(--danger-color)"></i> ค่างวดเงินกู้: <span id="eod-loan" style="color:var(--danger-color)"></span></p>
                 <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
                 <h4><i class="fas fa-newspaper"></i> เหตุการณ์ประจำวัน:</h4>
                 <div id="eod-event" style="background:rgba(255,255,255,0.05); padding:10px; border-radius:5px; margin-top:10px;"></div>
@@ -772,6 +774,145 @@
         </div>
     </div>
 
+    <!-- Emergency Loan Offer Modal -->
+    <div class="modal-overlay" id="loan-modal-overlay" style="z-index: 10000; display: none;">
+        <div class="modal" style="max-width: 520px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0; color: #f59e0b;"><i class="fas fa-hand-holding-usd"></i> เงินกู้ฉุกเฉิน (Emergency Loan)</h2>
+                <button onclick="declineLoanDeal()" style="background:transparent; color:var(--muted-text); border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-top: 0; color: #cbd5e1; font-size: 0.95rem;">
+                    เงินสดของคุณไม่พอสำหรับดีลนี้! คุณสามารถใช้สินเชื่อฉุกเฉินกู้เงินส่วนต่างเพื่อปิดดีลทันที
+                </p>
+                <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--muted-text);">สินค้าที่เสนอขาย:</span>
+                        <b id="loan-item-name" style="color: white;">-</b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--muted-text);">ราคาที่ตกลง:</span>
+                        <span style="color: white; font-weight: bold;">฿<span id="loan-agreed-price">0</span></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--muted-text);">เงินสดที่คุณมี:</span>
+                        <span style="color: var(--success-color);">฿<span id="loan-current-money">0</span></span>
+                    </div>
+                    <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #f87171; font-weight: bold;">ยอดเงินที่ต้องขอกู้ (เงินขาด):</span>
+                        <b style="color: #f87171;">฿<span id="loan-deficit">0</span></b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--muted-text);">ดอกเบี้ยเงินกู้ (20%):</span>
+                        <span style="color: #fbbf24;">+฿<span id="loan-interest">0</span></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.05rem;">
+                        <span style="color: white; font-weight: bold;">ยอดหนี้รวมที่ต้องชำระ:</span>
+                        <b style="color: #ef4444;">฿<span id="loan-total-debt">0</span></b>
+                    </div>
+                    <div style="background: rgba(234, 179, 8, 0.12); border-left: 3px solid #eab308; padding: 8px 12px; border-radius: 4px; margin-top: 10px; font-size: 0.9rem;">
+                        <i class="fas fa-calendar-alt" style="color: #eab308;"></i> <b>การผ่อนชำระ:</b> ผ่อนจ่าย <b>3 วัน</b> งวดละ <b>฿<span id="loan-daily-payment">0</span></b> (หักอัตโนมัติทุกสิ้นวัน)
+                    </div>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--muted-text); margin-bottom: 15px;">
+                    <i class="fas fa-info-circle"></i> หนี้ปัจจุบัน: ฿<span id="loan-current-debt">0</span> | วงเงินกู้สูงสุด: ฿<span id="loan-credit-limit">0</span>
+                    <br><small style="color: #94a3b8;">* หากสิ้นวันเงินไม่พอจ่ายค่างวด จะถูกคิดดอกเบี้ยปรับ 10% และหักชื่อเสียงร้าน</small>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="declineLoanDeal()" style="flex: 1; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; border: none; cursor: pointer; font-weight: bold;">
+                    <i class="fas fa-times"></i> ไม่กู้ (ยกเลิกดีล)
+                </button>
+                <button onclick="confirmLoanDeal()" id="btn-confirm-loan" style="flex: 1.5; padding: 12px; border-radius: 8px; background: linear-gradient(135deg, #eab308, #ca8a04); color: #0f172a; border: none; cursor: pointer; font-weight: bold; font-size: 1rem; box-shadow: 0 4px 12px rgba(234,179,8,0.3);">
+                    <i class="fas fa-file-signature"></i> กู้เงินและปิดดีล
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Repay Loan Modal -->
+    <div class="modal-overlay" id="repay-modal-overlay" style="z-index: 10000; display: none;">
+        <div class="modal" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0; color: #ef4444;"><i class="fas fa-receipt"></i> จัดการหนี้สิน / ชำระเงินกู้</h2>
+                <button onclick="closeRepayModal()" style="background:transparent; color:var(--muted-text); border:none; font-size:1.5rem; cursor:pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 10px; padding: 15px; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--muted-text);">ยอดหนี้คงค้างทั้งหมด:</span>
+                        <b style="color: #ef4444; font-size: 1.15rem;">฿<span id="repay-debt-remaining">0</span></b>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--muted-text);">ค่างวดประจำวัน:</span>
+                        <span style="color: white; font-weight: bold;">฿<span id="repay-debt-daily">0</span> / วัน</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--muted-text);">งวดที่เหลือ:</span>
+                        <span style="color: #fbbf24; font-weight: bold;"><span id="repay-days-left">0</span> วัน</span>
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <label style="font-size: 0.9rem; color: var(--muted-text);">ระบุจำนวนเงินที่ต้องการชำระ:</label>
+                        <small style="color: var(--success-color);">เงินสดที่มี: ฿<span id="repay-player-money">0</span></small>
+                    </div>
+                    <input type="number" id="repay-amount-input" min="1" placeholder="ใส่จำนวนเงิน..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; font-size: 1.1rem !important;">
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+                    <button type="button" onclick="setRepayQuick('daily')" style="flex: 1; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.08); color: white; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; font-size: 0.85rem;">
+                        จ่าย 1 งวด
+                    </button>
+                    <button type="button" onclick="setRepayQuick('half')" style="flex: 1; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.08); color: white; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; font-size: 0.85rem;">
+                        จ่ายครึ่งหนึ่ง
+                    </button>
+                    <button type="button" onclick="setRepayQuick('full')" style="flex: 1; padding: 8px; border-radius: 6px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); cursor: pointer; font-size: 0.85rem; font-weight: bold;">
+                        ปิดหนี้ทั้งหมด
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="closeRepayModal()" style="flex: 1; padding: 12px; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; border: none; cursor: pointer;">
+                    ปิด
+                </button>
+                <button onclick="submitRepayLoan()" id="btn-submit-repay" style="flex: 1.5; padding: 12px; border-radius: 8px; background: var(--success-color); color: white; border: none; cursor: pointer; font-weight: bold; font-size: 1rem;">
+                    <i class="fas fa-check-circle"></i> ยืนยันชำระหนี้
+                </button>
+            </div>
+        </div>
+    <!-- Bankruptcy / Game Over Modal -->
+    <div class="modal-overlay" id="bankruptcy-modal-overlay" style="z-index: 20000; display: none;">
+        <div class="modal" style="max-width: 480px; text-align: center; border: 2px solid #ef4444; box-shadow: 0 0 35px rgba(239, 68, 68, 0.4);">
+            <div style="font-size: 4rem; color: #ef4444; margin-bottom: 10px;">
+                <i class="fas fa-skull-crossbones"></i>
+            </div>
+            <h2 style="color: #ef4444; margin-bottom: 10px; font-size: 1.8rem;">กิจการล้มละลาย!</h2>
+            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 15px; margin-bottom: 20px; text-align: left;">
+                <p id="bankruptcy-desc" style="color: #fca5a5; margin: 0; line-height: 1.6; font-size: 0.95rem;">
+                    คุณเบี้ยวหนี้จนชื่อเสียงร้านลดลงเหลือ 0! เจ้าหนี้นอกระบบบุกมายึดร้าน กวาดสินค้าและทรัพย์สินทั้งหมดไป กิจการของคุณจบลงแล้ว...
+                </p>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 0.95rem; text-align: left;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="color: var(--muted-text);">เปิดร้านรอดมาได้:</span>
+                    <b style="color: white;"><span id="bankruptcy-days">0</span> วัน</b>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="color: var(--muted-text);">หนี้สินคงค้าง:</span>
+                    <b style="color: #ef4444;">฿<span id="bankruptcy-debt">0</span></b>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--muted-text);">ชื่อเสียงสุดท้าย:</span>
+                    <b style="color: #ef4444;">0 ⭐ (หมดความน่าเชื่อถือ)</b>
+                </div>
+            </div>
+            <button onclick="restartGame()" id="btn-restart-game" style="width: 100%; padding: 14px; border-radius: 8px; background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; border: none; cursor: pointer; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); transition: transform 0.2s;">
+                <i class="fas fa-redo"></i> เริ่มต้นกิจการใหม่ (New Game)
+            </button>
+        </div>
+    </div>
+
     <!-- Auth Modal -->
     <div class="modal-overlay" id="auth-overlay" style="z-index: 999999; display: none;">
         <div class="modal">
@@ -811,6 +952,8 @@
         let inventory = [];
         let currentTransType = "sell";
         let currentItemValue = 0;
+        let currentLoan = { remaining: 0, daily: 0, days_left: 0 };
+        let currentLoanOffer = null;
         const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
         const chatBox = document.getElementById('chat-box');
@@ -968,6 +1111,24 @@
                 }
             });
 
+            if (data.loan) {
+                currentLoan = data.loan;
+                const debtEl = document.getElementById('player-debt');
+                const debtBox = document.getElementById('stat-debt-box');
+                if (debtEl && debtBox) {
+                    debtEl.innerText = fmt(data.loan.remaining);
+                    debtBox.style.display = data.loan.remaining > 0 ? 'inline-flex' : 'none';
+                }
+            }
+
+            if (data.bankrupt) {
+                showBankruptcyModal({
+                    new_day: data.day + 1,
+                    loan_remaining: data.loan ? data.loan.remaining : 0,
+                    bankrupt_reason: "คุณมีหนี้สินค้างชำระและชื่อเสียงร้านเหลือ 0 กิจการของคุณล้มละลายแล้ว!"
+                });
+            }
+
             updateStats();
             renderInventory();
             return true;
@@ -976,6 +1137,12 @@
         function updateStats() {
             document.getElementById('player-money').innerText = fmt(money);
             document.getElementById('day-counter').innerText = day;
+            const debtEl = document.getElementById('player-debt');
+            const debtBox = document.getElementById('stat-debt-box');
+            if (debtEl && debtBox && currentLoan) {
+                debtEl.innerText = fmt(currentLoan.remaining);
+                debtBox.style.display = currentLoan.remaining > 0 ? 'inline-flex' : 'none';
+            }
         }
 
         // type: 'system' (อนุญาต HTML ที่เราเขียนเอง), 'ai' / 'user' (escape เสมอ)
@@ -1142,7 +1309,15 @@
                     if (data.accepted) {
                         endDeal(true, data.price, data.item, data.type);
                     } else if (data.insufficient_funds) {
-                        endDeal(false, data.price, null, data.type, 'no_money');
+                        if (data.can_loan && data.loan_offer) {
+                            showLoanOfferModal(data.loan_offer);
+                        } else {
+                            const limitMsg = data.credit_limit_exceeded 
+                                ? "วงเงินสินเชื่อของคุณเต็มแล้ว ไม่สามารถกู้เพิ่มได้!" 
+                                : `คุณมีเงินไม่พอจ่าย ฿${fmt(data.price)}`;
+                            await customAlert(limitMsg, "เงินไม่เพียงพอ");
+                            endDeal(false, data.price, null, data.type, 'no_money');
+                        }
                     } else if (data.item_missing) {
                         endDeal(false, data.price, null, data.type, 'item_missing');
                     } else if (data.rejected) {
@@ -1325,9 +1500,29 @@
                 return;
             }
 
+            if (data.bankrupt) {
+                document.getElementById('eod-overlay').style.display = 'none';
+                showBankruptcyModal(data);
+                return;
+            }
+
             document.getElementById('eod-day').innerText = data.new_day - 1;
             document.getElementById('eod-rent').innerText = `฿${fmt(data.rent)}`;
             document.getElementById('eod-wages').innerText = `฿${fmt(data.wages)}`;
+
+            const loanCont = document.getElementById('eod-loan-container');
+            const loanEl = document.getElementById('eod-loan');
+            if (loanCont && loanEl) {
+                if (data.loan_paid > 0) {
+                    loanCont.style.display = 'block';
+                    loanEl.innerText = `฿${fmt(data.loan_paid)} (หนี้คงเหลือ ฿${fmt(data.loan_remaining)})`;
+                } else if (data.loan_remaining > 0) {
+                    loanCont.style.display = 'block';
+                    loanEl.innerHTML = `<span style="color:var(--danger-color); font-weight:bold;">ค้างชำระ! โดนปรับดอกเบี้ย 10% (หนี้รวม ฿${fmt(data.loan_remaining)})</span>`;
+                } else {
+                    loanCont.style.display = 'none';
+                }
+            }
 
             const ev = data.event || { name: '-', desc: '', money_mod: 0, rep_mod: 0 };
             document.getElementById('eod-event').innerHTML = `<b>${escapeHtml(ev.name)}</b><br>${escapeHtml(ev.desc)}<br>
@@ -1336,7 +1531,7 @@
 
             const logsEl = document.getElementById('eod-logs');
             if (data.event_logs && data.event_logs.length > 0) {
-                logsEl.innerHTML = '<b><i class="fas fa-star"></i> ผลงานพนักงาน:</b><ul>' + data.event_logs.map(log => `<li>${escapeHtml(log)}</li>`).join('') + '</ul>';
+                logsEl.innerHTML = '<b><i class="fas fa-star"></i> ผลงานพนักงาน / การเงิน:</b><ul>' + data.event_logs.map(log => `<li>${escapeHtml(log)}</li>`).join('') + '</ul>';
             } else {
                 logsEl.innerHTML = '';
             }
@@ -1354,6 +1549,190 @@
             itemCard.style.display = 'none';
             resultPanel.style.display = 'none';
             roleBadge.style.display = 'none';
+        }
+
+        // ===================== BANKRUPTCY SYSTEM =====================
+        function showBankruptcyModal(data) {
+            document.getElementById('bankruptcy-days').innerText = data.new_day ? (data.new_day - 1) : day;
+            document.getElementById('bankruptcy-debt').innerText = fmt(data.loan_remaining != null ? data.loan_remaining : (currentLoan ? currentLoan.remaining : 0));
+            if (data.bankrupt_reason) {
+                document.getElementById('bankruptcy-desc').innerText = data.bankrupt_reason;
+            }
+            document.getElementById('bankruptcy-modal-overlay').style.display = 'flex';
+            playSfx('fail');
+        }
+
+        let isRestarting = false;
+        async function restartGame() {
+            if (isRestarting) return;
+            const btn = document.getElementById('btn-restart-game');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loader" style="width:18px;height:18px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:5px;"></div> กำลังสร้างร้านใหม่...';
+            isRestarting = true;
+            try {
+                const data = await api('/api/restart_game');
+                if (data.status === 'ok') {
+                    document.getElementById('bankruptcy-modal-overlay').style.display = 'none';
+                    document.getElementById('eod-overlay').style.display = 'none';
+                    chatBox.innerHTML = '<div class="message msg-system">🏢 คุณได้รับโอกาสเปิดร้านใหม่อีกครั้ง! เงินทุนเริ่มต้น ฿100,000 โปรดรักษาชื่อเสียงและบริหารหนี้สินให้ดี</div>';
+                    nextCustomerBtn.style.display = 'block';
+                    nextCustomerBtn.innerHTML = '<i class="fas fa-store"></i> <span class="hide-text">เปิดร้านรับลูกค้าคนแรก</span>';
+                    avatarContainer.style.display = 'none';
+                    itemCard.style.display = 'none';
+                    resultPanel.style.display = 'none';
+                    roleBadge.style.display = 'none';
+                    await loadGame();
+                    playSfx('cash');
+                    await customAlert("คุณได้รับเงินทุนตั้งตัวใหม่ ฿100,000 และชื่อเสียงเริ่มต้น 10!\nคราวนี้อย่าลืมบริหารเงินและจ่ายหนี้ให้ทันนะครับ", "เริ่มต้นใหม่สำเร็จ");
+                } else {
+                    if (handleCommonError(data)) return;
+                    await customAlert(data.message || "เกิดข้อผิดพลาดในการรีเซ็ตเกม", "ข้อผิดพลาด");
+                }
+            } finally {
+                isRestarting = false;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-redo"></i> เริ่มต้นกิจการใหม่ (New Game)';
+            }
+        }
+
+        // ===================== LOAN & REPAYMENT SYSTEM =====================
+        function showLoanOfferModal(offer) {
+            currentLoanOffer = offer;
+            document.getElementById('loan-item-name').innerText = offer.item_name || 'สินค้า';
+            document.getElementById('loan-agreed-price').innerText = fmt(offer.agreed_price);
+            document.getElementById('loan-current-money').innerText = fmt(offer.current_money);
+            document.getElementById('loan-deficit').innerText = fmt(offer.deficit);
+            document.getElementById('loan-interest').innerText = fmt(offer.interest);
+            document.getElementById('loan-total-debt').innerText = fmt(offer.total_debt);
+            document.getElementById('loan-daily-payment').innerText = fmt(offer.daily_payment);
+            document.getElementById('loan-current-debt').innerText = fmt(offer.current_debt);
+            document.getElementById('loan-credit-limit').innerText = fmt(offer.credit_limit);
+
+            const btn = document.getElementById('btn-confirm-loan');
+            btn.innerHTML = `<i class="fas fa-file-signature"></i> กู้เงิน ฿${fmt(offer.deficit)} และปิดดีล`;
+            btn.disabled = false;
+            document.getElementById('loan-modal-overlay').style.display = 'flex';
+        }
+
+        async function confirmLoanDeal() {
+            const btn = document.getElementById('btn-confirm-loan');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loader" style="width:18px;height:18px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:5px;"></div> กำลังทำสัญญา...';
+
+            try {
+                const data = await api('/api/chat', { accept_loan: true, message: "ตกลงทำสัญญาเงินกู้", session: sessionToken });
+                document.getElementById('loan-modal-overlay').style.display = 'none';
+
+                if (data.status === 'ok') {
+                    if (data.accepted) {
+                        if (data.loan_info) {
+                            currentLoan = {
+                                remaining: data.loan_info.loan_remaining,
+                                daily: data.loan_info.daily_payment,
+                                days_left: data.loan_info.days_left
+                            };
+                            addMessage(`<b>[สัญญาเงินกู้]</b> อนุมัติเงินกู้ ฿${fmt(data.loan_info.borrowed)} (ดอกเบี้ย ฿${fmt(data.loan_info.interest)}) ผ่อนวันละ ฿${fmt(data.loan_info.daily_payment)} (${data.loan_info.days_left} วัน)`, 'system');
+                        }
+                        endDeal(true, data.price, data.item, data.type);
+                    } else {
+                        if (data.message) await customAlert(data.message, "การกู้เงินไม่สำเร็จ");
+                        endDeal(false, data.price, null, data.type, 'no_money');
+                    }
+                } else {
+                    if (handleCommonError(data)) return;
+                    await customAlert(data.message || "เกิดข้อผิดพลาด", "ข้อผิดพลาด");
+                    endDeal(false, currentLoanOffer ? currentLoanOffer.agreed_price : 0, null, 'sell', 'no_money');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-file-signature"></i> กู้เงินและปิดดีล';
+                currentLoanOffer = null;
+            }
+        }
+
+        async function declineLoanDeal() {
+            document.getElementById('loan-modal-overlay').style.display = 'none';
+            const price = currentLoanOffer ? currentLoanOffer.agreed_price : 0;
+            currentLoanOffer = null;
+            addMessage("คุณปฏิเสธการกู้เงิน ดีลการซื้อขายจึงถูกยกเลิก", 'system');
+            api('/api/chat', { decline_loan: true, message: "ปฏิเสธการกู้เงิน", session: sessionToken });
+            endDeal(false, price, null, 'sell', 'no_money');
+        }
+
+        function openRepayModal() {
+            if (!currentLoan || currentLoan.remaining <= 0) {
+                customAlert("คุณไม่มีหนี้สินที่ต้องชำระในขณะนี้", "ไม่มีหนี้สิน");
+                return;
+            }
+            document.getElementById('repay-debt-remaining').innerText = fmt(currentLoan.remaining);
+            document.getElementById('repay-debt-daily').innerText = fmt(currentLoan.daily || currentLoan.remaining);
+            document.getElementById('repay-days-left').innerText = currentLoan.days_left || 0;
+            document.getElementById('repay-player-money').innerText = fmt(money);
+
+            const input = document.getElementById('repay-amount-input');
+            const defaultPay = Math.min(currentLoan.daily || currentLoan.remaining, currentLoan.remaining, money);
+            input.value = defaultPay > 0 ? defaultPay : '';
+            input.max = Math.min(currentLoan.remaining, money);
+
+            document.getElementById('repay-modal-overlay').style.display = 'flex';
+        }
+
+        function closeRepayModal() {
+            document.getElementById('repay-modal-overlay').style.display = 'none';
+        }
+
+        function setRepayQuick(type) {
+            const input = document.getElementById('repay-amount-input');
+            if (!currentLoan) return;
+            if (type === 'daily') {
+                input.value = Math.min(currentLoan.daily || currentLoan.remaining, currentLoan.remaining, money);
+            } else if (type === 'half') {
+                input.value = Math.min(Math.ceil(currentLoan.remaining / 2), money);
+            } else if (type === 'full') {
+                input.value = Math.min(currentLoan.remaining, money);
+            }
+        }
+
+        let isRepaying = false;
+        async function submitRepayLoan() {
+            if (isRepaying) return;
+            const input = document.getElementById('repay-amount-input');
+            const amount = parseInt(input.value, 10);
+
+            if (!amount || amount <= 0) {
+                await customAlert("กรุณาระบุจำนวนเงินที่ต้องการชำระ", "ระบุจำนวนเงิน");
+                return;
+            }
+            if (amount > money) {
+                await customAlert(`คุณมีเงินไม่พอชำระ (มี ฿${fmt(money)} แต่จะจ่าย ฿${fmt(amount)})`, "เงินไม่พอ");
+                return;
+            }
+
+            isRepaying = true;
+            const btn = document.getElementById('btn-submit-repay');
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loader" style="width:16px;height:16px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:5px;"></div> กำลังชำระ...';
+
+            try {
+                const data = await api('/api/pay_loan', { amount: amount });
+                if (data.status === 'ok') {
+                    money = data.new_money;
+                    currentLoan = data.loan;
+                    updateStats();
+                    playSfx('cash');
+                    closeRepayModal();
+                    await customAlert(data.message, "ชำระหนี้สำเร็จ");
+                    addMessage(`<b>[ระบบ]</b> ${escapeHtml(data.message)}`, 'system');
+                    loadGame();
+                } else {
+                    if (handleCommonError(data)) return;
+                    await customAlert(data.message || "เกิดข้อผิดพลาดในการชำระหนี้", "ข้อผิดพลาด");
+                }
+            } finally {
+                isRepaying = false;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> ยืนยันชำระหนี้';
+            }
         }
 
         // ===================== SERVICE WORKER =====================
