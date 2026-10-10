@@ -354,12 +354,193 @@
             justify-content: center;
         }
 
-        .input-area {
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.3);
+        /* --- Dealer's Life 2 Negotiation Controls --- */
+        .negotiate-controls {
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.85);
             display: flex;
+            flex-direction: column;
             gap: 10px;
             border-top: 1px solid var(--panel-border);
+        }
+
+        .negotiate-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .customer-price-hint {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.88rem;
+            color: var(--muted-text);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .mode-toggle-group {
+            display: flex;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mode-tab {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--muted-text);
+            border: none;
+            cursor: pointer;
+            text-transform: none;
+            letter-spacing: normal;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .mode-tab.active {
+            background: var(--accent-color);
+            color: #0f172a;
+            box-shadow: 0 2px 8px rgba(234, 179, 8, 0.3);
+        }
+
+        .price-offer-row {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+        }
+
+        .price-input-box {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .currency-tag {
+            position: absolute;
+            left: 14px;
+            font-weight: bold;
+            color: #fbbf24;
+            font-size: 1.15rem;
+            pointer-events: none;
+        }
+
+        .price-input-box input[type="number"] {
+            width: 100%;
+            padding: 10px 12px 10px 34px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        .price-input-box input[type="number"]:focus {
+            border-color: #fbbf24;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.25);
+        }
+
+        .btn-offer-submit {
+            padding: 10px 18px;
+            background: linear-gradient(135deg, #eab308, #ca8a04);
+            color: #0f172a;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+            text-transform: none;
+            letter-spacing: normal;
+            transition: transform 0.15s;
+        }
+
+        .btn-deal-accept {
+            padding: 10px 16px;
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: white;
+            font-size: 0.95rem;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+            text-transform: none;
+            letter-spacing: normal;
+            display: none;
+        }
+
+        .quick-chips-row {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-top: 4px;
+        }
+
+        .quick-chip {
+            flex: 1;
+            min-width: 44px;
+            padding: 6px 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-transform: none;
+            letter-spacing: normal;
+            transition: all 0.15s;
+        }
+
+        .quick-chip:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.18);
+            color: white;
+        }
+
+        .quick-chip.chip-center {
+            background: rgba(234, 179, 8, 0.15);
+            border-color: rgba(234, 179, 8, 0.35);
+            color: #fde047;
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-input-row button {
+            padding: 10px 20px;
+        }
+
+        .negotiate-actions-row {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .negotiate-actions-row button {
+            padding: 8px 16px;
+            font-size: 0.88rem;
+            border-radius: 8px;
+            text-transform: none;
+            letter-spacing: normal;
         }
 
         input[type="text"] {
@@ -683,11 +864,68 @@
                     <div class="message msg-system">ร้านเปิดแล้ว! กด "เปิดร้านรับลูกค้า" ทางซ้ายมือเพื่อเริ่มเกม</div>
                 </div>
                 
-                <div class="input-area">
-                    <input type="text" id="user-input" placeholder="พิมพ์ข้อความเจรจาต่อรอง หรือเสนอราคาที่นี่..." disabled onkeydown="handleEnter(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" maxlength="300">
-                    <button id="send-btn" onclick="sendMessage()" disabled title="ส่งข้อความ"><i class="fas fa-paper-plane"></i></button>
-                    <button id="appraise-btn" onclick="appraiseItem()" class="appraise-btn" disabled style="display:none;" title="ตรวจสอบ (฿500)"><i class="fas fa-search-dollar"></i></button>
-                    <button id="reject-btn" onclick="rejectCustomer()" class="danger-btn" disabled title="ปฏิเสธ"><i class="fas fa-times"></i></button>
+                <!-- Dealer's Life 2 Negotiation Controls -->
+                <div class="negotiate-controls" id="negotiate-controls">
+                    <!-- Top header: Customer price & Mode Switch -->
+                    <div class="negotiate-header">
+                        <div class="customer-price-hint">
+                            <span id="customer-offer-label">ราคาที่ลูกค้าเสนอ:</span>
+                            <b id="customer-offer-display" style="color: #fbbf24; font-size: 1.05rem;">-</b>
+                        </div>
+                        <div class="mode-toggle-group">
+                            <button type="button" id="tab-price-mode" class="mode-tab active" onclick="setNegotiateMode('price')">
+                                <i class="fas fa-coins"></i> เสนอราคา
+                            </button>
+                            <button type="button" id="tab-chat-mode" class="mode-tab" onclick="setNegotiateMode('chat')">
+                                <i class="fas fa-comments"></i> พิมพ์แชท (AI)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Panel 1: Price Negotiation Panel (Default) -->
+                    <div id="panel-price-mode">
+                        <div class="price-offer-row">
+                            <div class="price-input-box">
+                                <span class="currency-tag">฿</span>
+                                <input type="number" id="offer-price-input" min="0" step="100" placeholder="ระบุราคาที่ต้องการยื่น..." disabled onkeydown="handlePriceEnter(event)">
+                            </div>
+                            <button type="button" id="btn-submit-offer" class="btn-offer-submit" onclick="submitOfferPrice()" disabled>
+                                <i class="fas fa-handshake"></i> ยื่นข้อเสนอ
+                            </button>
+                            <button type="button" id="btn-accept-offer" class="btn-deal-accept" onclick="acceptCustomerOffer()" style="display: none;" title="ตกลงรับราคาที่ลูกค้าเสนอ">
+                                <i class="fas fa-check-circle"></i> ตกลงราคานี้
+                            </button>
+                        </div>
+
+                        <!-- Quick adjust chips -->
+                        <div class="quick-chips-row">
+                            <button type="button" class="quick-chip" onclick="adjustPricePct(-0.20)">-20%</button>
+                            <button type="button" class="quick-chip" onclick="adjustPricePct(-0.10)">-10%</button>
+                            <button type="button" class="quick-chip" onclick="adjustPricePct(-0.05)">-5%</button>
+                            <button type="button" class="quick-chip chip-center" onclick="resetPriceToBase()">ราคากลาง</button>
+                            <button type="button" class="quick-chip" onclick="adjustPricePct(+0.05)">+5%</button>
+                            <button type="button" class="quick-chip" onclick="adjustPricePct(+0.10)">+10%</button>
+                            <button type="button" class="quick-chip" onclick="adjustPricePct(+0.20)">+20%</button>
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Freeform AI Chat Panel (Switched on demand) -->
+                    <div id="panel-chat-mode" style="display: none;">
+                        <div class="chat-input-row">
+                            <input type="text" id="user-input" placeholder="พิมพ์ข้อความเจรจาต่อรอง หรือเสนอราคาที่นี่..." disabled onkeydown="handleEnter(event)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" maxlength="300">
+                            <button id="send-btn" onclick="sendMessage()" disabled title="ส่งข้อความ"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Sub Actions: Appraise & Reject -->
+                    <div class="negotiate-actions-row">
+                        <button id="appraise-btn" onclick="appraiseItem()" class="appraise-btn" disabled style="display:none;" title="ตรวจสอบ (฿500)">
+                            <i class="fas fa-search-dollar"></i> ตรวจสอบของ (฿500)
+                        </button>
+                        <button id="reject-btn" onclick="rejectCustomer()" class="danger-btn" disabled title="ปฏิเสธดีล / ไล่ลูกค้า">
+                            <i class="fas fa-times"></i> ปฏิเสธดีล
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -769,7 +1007,14 @@
                     <button id="btn-upgrade-ad" onclick="upgradeStaff('ad')" style="padding:5px 10px; cursor:pointer; background:var(--buy-color); color:white; border:none; border-radius:4px;">อัปเกรด</button>
                 </div>
                 <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
-                <p style="text-align:center; color:var(--muted-text)">⭐ อัปเกรดพนักงานได้สูงสุด 3 ดาว!</p>
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px; margin-top: 10px; text-align: left;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+                        <label style="font-size: 0.85rem; color: #93c5fa;"><i class="fas fa-key"></i> Groq API Key ส่วนตัว (ไม่บังคับ)</label>
+                        <small style="color: var(--muted-text); font-size: 0.75rem;">เล่นได้ไม่จำกัด</small>
+                    </div>
+                    <input type="password" id="custom-groq-key" placeholder="gsk_..." style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: white; font-size: 0.85rem;" oninput="saveCustomKey(this.value)">
+                    <small style="color: var(--muted-text); font-size: 0.75rem; display: block; margin-top: 4px;">* หาก Groq ส่วนกลางติดลิมิต ระบบจะสลับใช้บอทเจรจาสำรองให้อัตโนมัติทันที</small>
+                </div>
             </div>
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <button onclick="logout()" style="flex:1; padding:10px; border-radius:8px; background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.4); cursor:pointer; font-weight:bold;"><i class="fas fa-sign-out-alt"></i> สลับบัญชี / ออกจากระบบ</button>
@@ -958,6 +1203,8 @@
         let inventory = [];
         let currentTransType = "sell";
         let currentItemValue = 0;
+        let currentNegotiateMode = 'price';
+        let currentCustomerPrice = 0;
         let currentLoan = { remaining: 0, daily: 0, days_left: 0 };
         let currentLoanOffer = null;
         const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -965,6 +1212,14 @@
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
+        const tabPriceMode = document.getElementById('tab-price-mode');
+        const tabChatMode = document.getElementById('tab-chat-mode');
+        const panelPriceMode = document.getElementById('panel-price-mode');
+        const panelChatMode = document.getElementById('panel-chat-mode');
+        const offerPriceInput = document.getElementById('offer-price-input');
+        const btnSubmitOffer = document.getElementById('btn-submit-offer');
+        const btnAcceptOffer = document.getElementById('btn-accept-offer');
+        const customerOfferDisplay = document.getElementById('customer-offer-display');
         const nextCustomerBtn = document.getElementById('next-customer-btn');
         const rejectBtn = document.getElementById('reject-btn');
         const appraiseBtn = document.getElementById('appraise-btn');
@@ -1017,7 +1272,7 @@
                 const res = await fetch(path, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pin: user_pin, save: saveToken, ...body }),
+                    body: JSON.stringify({ pin: user_pin, save: saveToken, groq_key: lsGet('custom_groq_key'), ...body }),
                     signal: ctrl ? ctrl.signal : undefined,
                     cache: 'no-store'
                 });
@@ -1169,14 +1424,101 @@
             }
         }
 
+        // ===================== DEALER LIFE 2 NEGOTIATION CONTROLS =====================
+        function setNegotiateMode(mode) {
+            currentNegotiateMode = mode;
+            if (mode === 'chat') {
+                if (tabPriceMode) tabPriceMode.classList.remove('active');
+                if (tabChatMode) tabChatMode.classList.add('active');
+                if (panelPriceMode) panelPriceMode.style.display = 'none';
+                if (panelChatMode) panelChatMode.style.display = 'block';
+                if (isChatting && !isTouch && userInput) userInput.focus();
+            } else {
+                if (tabChatMode) tabChatMode.classList.remove('active');
+                if (tabPriceMode) tabPriceMode.classList.add('active');
+                if (panelChatMode) panelChatMode.style.display = 'none';
+                if (panelPriceMode) panelPriceMode.style.display = 'block';
+                if (isChatting && !isTouch && offerPriceInput) offerPriceInput.focus();
+            }
+        }
+
+        function updateCustomerPriceDisplay(price) {
+            currentCustomerPrice = Number(price) || 0;
+            if (customerOfferDisplay) {
+                if (currentCustomerPrice > 0) {
+                    customerOfferDisplay.innerText = `฿${fmt(currentCustomerPrice)}`;
+                } else {
+                    customerOfferDisplay.innerText = '-';
+                }
+            }
+            if (btnAcceptOffer) {
+                if (currentCustomerPrice > 0) {
+                    btnAcceptOffer.style.display = 'inline-flex';
+                    btnAcceptOffer.innerHTML = `<i class="fas fa-check-circle"></i> ตกลง ฿${fmt(currentCustomerPrice)}`;
+                } else {
+                    btnAcceptOffer.style.display = 'none';
+                }
+            }
+        }
+
+        function adjustPricePct(pct) {
+            if (!isChatting || !offerPriceInput) return;
+            let currentVal = parseInt(offerPriceInput.value, 10);
+            if (!currentVal || isNaN(currentVal)) {
+                currentVal = currentCustomerPrice > 0 ? currentCustomerPrice : currentItemValue;
+            }
+            if (!currentVal || currentVal <= 0) return;
+            
+            let newVal = Math.round((currentVal * (1 + pct)) / 100) * 100;
+            if (newVal < 100) newVal = 100;
+            offerPriceInput.value = newVal;
+        }
+
+        function resetPriceToBase() {
+            if (!isChatting || !offerPriceInput || !currentItemValue) return;
+            offerPriceInput.value = currentItemValue;
+        }
+
+        function handlePriceEnter(e) {
+            if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
+                e.preventDefault();
+                submitOfferPrice();
+            }
+        }
+
+        function submitOfferPrice() {
+            if (!isChatting || isSending || !offerPriceInput) return;
+            const price = parseInt(offerPriceInput.value, 10);
+            if (!price || price <= 0) {
+                customAlert("กรุณาระบุราคาที่ต้องการยื่นข้อเสนอ", "ระบุราคา");
+                return;
+            }
+            sendMessage(String(price));
+        }
+
+        function acceptCustomerOffer() {
+            if (!isChatting || isSending || currentCustomerPrice <= 0) return;
+            sendMessage(String(currentCustomerPrice));
+        }
+
         function setInputState(enabled) {
-            userInput.disabled = !enabled;
-            sendBtn.disabled = !enabled;
-            rejectBtn.disabled = !enabled;
-            appraiseBtn.style.display = (currentTransType === "sell") ? 'inline-block' : 'none';
-            // iPad: ไม่โฟกัสอัตโนมัติ เพราะคีย์บอร์ดจะเด้งขึ้นมาบังจอทุกครั้งที่ลูกค้าตอบ
-            if (enabled && !isTouch) userInput.focus();
-            if (!enabled && isTouch) userInput.blur();
+            if (userInput) userInput.disabled = !enabled;
+            if (sendBtn) sendBtn.disabled = !enabled;
+            if (offerPriceInput) offerPriceInput.disabled = !enabled;
+            if (btnSubmitOffer) btnSubmitOffer.disabled = !enabled;
+            if (btnAcceptOffer) btnAcceptOffer.disabled = !enabled;
+            document.querySelectorAll('.quick-chip').forEach(btn => btn.disabled = !enabled);
+            if (rejectBtn) rejectBtn.disabled = !enabled;
+            if (appraiseBtn) appraiseBtn.style.display = (currentTransType === "sell") ? 'inline-block' : 'none';
+
+            if (enabled && !isTouch) {
+                if (currentNegotiateMode === 'price' && offerPriceInput) offerPriceInput.focus();
+                else if (userInput) userInput.focus();
+            }
+            if (!enabled && isTouch) {
+                if (userInput) userInput.blur();
+                if (offerPriceInput) offerPriceInput.blur();
+            }
         }
 
         function setItemImage(src) {
@@ -1205,6 +1547,9 @@
             isChatting = false;
             sessionToken = null;
             setInputState(false);
+            setNegotiateMode('price');
+            updateCustomerPriceDisplay(0);
+            if (offerPriceInput) offerPriceInput.value = '';
 
             nextCustomerBtn.style.display = 'none';
             resultPanel.style.display = 'none';
@@ -1246,12 +1591,20 @@
                         actionText.innerText = "สนใจซื้อ:";
                         actionText.style.color = "var(--buy-color)";
                         appraiseBtn.disabled = true;
+                        const startOffer = data.bot_price ? Math.round((data.bot_price * 1.15) / 100) * 100 : Math.round((currentItemValue * 1.25) / 100) * 100;
+                        if (offerPriceInput) offerPriceInput.value = startOffer;
                     } else {
                         roleBadge.innerText = "ลูกค้ามาเสนอขาย";
                         roleBadge.className = "role-badge role-sell";
                         actionText.innerText = "เสนอขาย:";
                         actionText.style.color = "var(--sell-color)";
                         appraiseBtn.disabled = false;
+                        const startOffer = data.bot_price ? Math.round((data.bot_price * 0.75) / 100) * 100 : Math.round((currentItemValue * 0.70) / 100) * 100;
+                        if (offerPriceInput) offerPriceInput.value = startOffer;
+                    }
+
+                    if (data.bot_price) {
+                        updateCustomerPriceDisplay(data.bot_price);
                     }
 
                     if (typeof data.customers_left === 'number') {
@@ -1260,6 +1613,9 @@
 
                     addMessage("ลูกค้าเดินเข้ามาที่เคาน์เตอร์", 'system');
                     addMessage(data.message, 'ai');
+                    if (data.fallback) {
+                        addMessage('<small style="color:#fbbf24;"><i class="fas fa-microchip"></i> <i>(กำลังใช้บอทจำลองสถานการณ์เนื่องจาก Groq AI โควตาเต็ม)</i></small>', 'system');
+                    }
                     playSfx('door');
 
                     isChatting = true;
@@ -1274,29 +1630,39 @@
             }
         }
 
-        async function sendMessage() {
+        async function sendMessage(overrideText = null) {
             if (isSending || !isChatting) return;
-            const text = userInput.value.trim();
+            const text = (overrideText != null ? String(overrideText) : userInput.value).trim();
             if (!text) return;
             isSending = true;
 
             try {
+                // If text is pure number, format nicely for display as user message
+                let displayMsg = text;
+                const isOnlyNum = /^\d+$/.test(text.replace(/,/g, ''));
+                if (isOnlyNum) {
+                    displayMsg = `ยื่นข้อเสนอราคา: ฿${fmt(parseInt(text.replace(/,/g, ''), 10))}`;
+                }
+
                 // Check for typos in numbers
                 const textRaw = text.replace(/,/g, '');
                 const numMatch = textRaw.match(/\d+/);
                 if (numMatch && currentItemValue > 0) {
                     const proposedPrice = parseInt(numMatch[0], 10);
                     if (proposedPrice < currentItemValue * 0.1 || proposedPrice > currentItemValue * 5) {
-                        const confirmMsg = `⚠️ ตัวเลขที่คุณพิมพ์ (${fmt(proposedPrice)}) ค่อนข้างห่างจากราคากลางมาก\n\nคุณพิมพ์ 0 ตกหล่นหรือเกินไปหรือไม่?\nกด "ตกลง" เพื่อส่งข้อความต่อ หรือกด "ยกเลิก" เพื่อกลับไปแก้ไข`;
+                        const confirmMsg = `⚠️ ตัวเลขที่คุณเสนอ (${fmt(proposedPrice)}) ค่อนข้างห่างจากราคากลางมาก\n\nคุณพิมพ์ 0 ตกหล่นหรือเกินไปหรือไม่?\nกด "ตกลง" เพื่อยื่นข้อเสนอนี้ หรือกด "ยกเลิก" เพื่อแก้ไข`;
                         const isSure = await customConfirm(confirmMsg, "ยืนยันราคา");
                         if (!isSure || !isChatting) {
-                            if (!isTouch) userInput.focus();
+                            if (!isTouch) {
+                                if (currentNegotiateMode === 'price' && offerPriceInput) offerPriceInput.focus();
+                                else if (userInput) userInput.focus();
+                            }
                             return;
                         }
                     }
                 }
 
-                addMessage(text, 'user');
+                addMessage(displayMsg, 'user');
                 userInput.value = '';
                 setInputState(false);
 
@@ -1311,6 +1677,12 @@
 
                 if (data.status === 'ok') {
                     if (data.message) addMessage(data.message, 'ai');
+                    if (data.fallback) {
+                        addMessage('<small style="color:#fbbf24;"><i class="fas fa-microchip"></i> <i>(ตอบด้วยระบบจำลองสถานการณ์)</i></small>', 'system');
+                    }
+                    if (data.bot_price) {
+                        updateCustomerPriceDisplay(data.bot_price);
+                    }
 
                     if (data.accepted) {
                         endDeal(true, data.price, data.item, data.type);
@@ -1329,13 +1701,20 @@
                     } else if (data.rejected) {
                         endDeal(false);
                     } else {
+                        // Customer countered: update suggested offer in offerPriceInput
+                        if (data.bot_price && data.bot_price > 0 && offerPriceInput) {
+                            if (currentTransType === "buy") {
+                                offerPriceInput.value = Math.round((data.bot_price * 1.05) / 100) * 100;
+                            } else {
+                                offerPriceInput.value = Math.round((data.bot_price * 0.95) / 100) * 100;
+                            }
+                        }
                         setInputState(true);
                     }
                 } else {
                     if (handleCommonError(data)) return;
                     addMessage("<b>[ระบบ]</b> " + escapeHtml(data.message), 'system');
-                    // ส่งไม่สำเร็จ -> คืนข้อความให้แก้/ส่งใหม่ได้
-                    if (!userInput.value) userInput.value = text;
+                    if (!userInput.value && overrideText == null) userInput.value = text;
                     setInputState(true);
                 }
             } finally {
@@ -1348,6 +1727,8 @@
             sessionToken = null;
             setInputState(false);
             appraiseBtn.disabled = true;
+            updateCustomerPriceDisplay(0);
+            if (offerPriceInput) offerPriceInput.value = '';
 
             itemCard.style.display = 'none';
             resultPanel.style.display = 'block';
@@ -1401,6 +1782,8 @@
             sessionToken = null;
             setInputState(false);
             appraiseBtn.disabled = true;
+            updateCustomerPriceDisplay(0);
+            if (offerPriceInput) offerPriceInput.value = '';
 
             itemCard.style.display = 'none';
             resultPanel.style.display = 'block';
@@ -1468,8 +1851,18 @@
             });
         }
 
+        function saveCustomKey(val) {
+            if (val && val.trim()) {
+                lsSet('custom_groq_key', val.trim());
+            } else {
+                lsDel('custom_groq_key');
+            }
+        }
+
         function openManager() {
             loadGame();
+            const keyInput = document.getElementById('custom-groq-key');
+            if (keyInput) keyInput.value = lsGet('custom_groq_key') || '';
             document.getElementById('manager-overlay').style.display = 'flex';
         }
 
