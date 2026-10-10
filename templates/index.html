@@ -750,6 +750,22 @@
             color: var(--accent-color);
             border-bottom: 1px solid var(--panel-border);
             padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .inv-count-badge {
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(234, 179, 8, 0.15);
+            color: var(--accent-color);
+            border: 1px solid rgba(234, 179, 8, 0.35);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .inventory-list {
@@ -1190,7 +1206,10 @@
 
             <!-- Right: Inventory -->
             <div class="inventory-area">
-                <h3><i class="fas fa-box-open"></i> <span class="hide-text">คลังสินค้าของร้าน</span></h3>
+                <h3>
+                    <span><i class="fas fa-box-open"></i> <span class="hide-text">คลังสินค้าของร้าน</span></span>
+                    <span id="inv-count-badge" class="inv-count-badge"><i class="fas fa-boxes"></i> <span id="inv-count-num">0</span> ชิ้น</span>
+                </h3>
                 <div class="inventory-list" id="inventory-list">
                     <div style="text-align: center; color: var(--muted-text); margin-top: 20px; font-style: italic;" id="empty-inv">
                         ยังไม่มีสินค้าในคลัง
@@ -2261,6 +2280,9 @@
         }
 
         function renderInventory() {
+            const countNum = document.getElementById('inv-count-num');
+            if (countNum) countNum.innerText = (inventory && inventory.length) || 0;
+
             inventoryList.innerHTML = '';
             if (!inventory.length) {
                 emptyInvMsg.style.display = 'block';
