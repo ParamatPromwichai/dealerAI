@@ -1576,6 +1576,7 @@
         let currentExpertLevel = 0;
         let currentCustomerProfile = null;
         let currentItemCondition = 100;
+        let isCurrentItemAppraised = false;
         const isTouch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
         const chatBox = document.getElementById('chat-box');
@@ -1676,8 +1677,12 @@
         function handleSessionLost() {
             isChatting = false;
             sessionToken = null;
+            isCurrentItemAppraised = false;
             setInputState(false);
-            appraiseBtn.disabled = true;
+            if (appraiseBtn) {
+                appraiseBtn.disabled = true;
+                appraiseBtn.style.display = 'none';
+            }
             itemCard.style.display = 'none';
             resultPanel.style.display = 'block';
             const title = document.getElementById('result-title');
@@ -1858,7 +1863,10 @@
             if (!appraiseBtn) return;
             appraiseBtn.style.display = 'inline-block';
             const feeText = currentExpertLevel >= 2 ? '(ฟรี)' : (currentExpertLevel === 1 ? '(฿250)' : '(฿500)');
-            if (currentTransType === 'buy') {
+            if (isCurrentItemAppraised) {
+                appraiseBtn.innerHTML = `<i class="fas fa-check-circle"></i> <span class="hide-text">ตรวจสอบแล้ว</span>`;
+                appraiseBtn.title = "ตรวจสอบสินค้าชิ้นนี้ไปแล้ว";
+            } else if (currentTransType === 'buy') {
                 appraiseBtn.innerHTML = `<i class="fas fa-search"></i> <span class="hide-text">ตรวจของในคลัง</span> ${feeText}`;
                 appraiseBtn.title = "ตรวจสอบสินค้าในคลังของคุณว่าจริงหรือปลอมก่อนขาย";
             } else {
@@ -1877,7 +1885,7 @@
             if (rejectBtn) rejectBtn.disabled = !enabled;
             if (appraiseBtn) {
                 updateAppraiseButtonUI();
-                if (!enabled) appraiseBtn.disabled = true;
+                appraiseBtn.disabled = !enabled || isCurrentItemAppraised;
             }
 
             if (enabled && !isTouch) {
@@ -1999,13 +2007,11 @@
                         }
                     }
 
+                    isCurrentItemAppraised = !!data.auto_appraised;
                     playSfx('door');
 
                     isChatting = true;
                     setInputState(true);
-                    if (data.auto_appraised && appraiseBtn) {
-                        appraiseBtn.disabled = true;
-                    }
                 } else {
                     if (handleCommonError(data)) return;
                     addMessage("<b>[ระบบ]</b> " + escapeHtml(data.message || 'เกิดข้อผิดพลาด'), 'system');
@@ -2122,8 +2128,12 @@
             isChatting = false;
             sessionToken = null;
             currentCustomerProfile = null;
+            isCurrentItemAppraised = false;
             setInputState(false);
-            if (appraiseBtn) appraiseBtn.disabled = true;
+            if (appraiseBtn) {
+                appraiseBtn.disabled = true;
+                appraiseBtn.style.display = 'none';
+            }
             updateCustomerPriceDisplay(0);
             if (offerPriceInput) offerPriceInput.value = '';
 
@@ -2185,8 +2195,12 @@
             isChatting = false;
             sessionToken = null;
             currentCustomerProfile = null;
+            isCurrentItemAppraised = false;
             setInputState(false);
-            appraiseBtn.disabled = true;
+            if (appraiseBtn) {
+                appraiseBtn.disabled = true;
+                appraiseBtn.style.display = 'none';
+            }
             updateCustomerPriceDisplay(0);
             if (offerPriceInput) offerPriceInput.value = '';
 
@@ -2205,14 +2219,22 @@
         async function appraiseItem() {
             if (!isChatting || isSending || appraiseBtn.disabled) return;
 
-            appraiseBtn.disabled = true;
             const fee = currentExpertLevel >= 2 ? 0 : (currentExpertLevel === 1 ? 250 : 500);
+            if (fee > 0 && money < fee) {
+                await customAlert(`เงินไม่พอค่าตรวจสอบ (ต้องการ ฿${fmt(fee)})`, "เงินไม่เพียงพอ");
+                return;
+            }
+
+            appraiseBtn.disabled = true;
             const feeText = fee === 0 ? 'ฟรี (ผู้เชี่ยวชาญ Lv.2+)' : `หักเงิน ฿${fmt(fee)}`;
             addMessage(`<b>[ระบบ]</b> กำลังตรวจสอบสินค้า... (${feeText})`, 'system');
 
             const data = await api('/api/appraise', { session: sessionToken });
 
             if (data.status === 'ok') {
+                isCurrentItemAppraised = true;
+                updateAppraiseButtonUI();
+                appraiseBtn.disabled = true;
                 money -= (data.cost || 0);
                 updateStats();
                 if (data.is_fake) {
@@ -2228,7 +2250,13 @@
             } else {
                 if (handleCommonError(data)) return;
                 addMessage(`<b>[ระบบ]</b> ข้อผิดพลาด: ${escapeHtml(data.message)}`, 'system');
-                if (isChatting && !String(data.message).includes('ไปแล้ว')) appraiseBtn.disabled = false;
+                if (String(data.message).includes('ไปแล้ว')) {
+                    isCurrentItemAppraised = true;
+                    updateAppraiseButtonUI();
+                    appraiseBtn.disabled = true;
+                } else if (isChatting) {
+                    appraiseBtn.disabled = false;
+                }
             }
         }
 
@@ -2533,6 +2561,11 @@
             itemCard.style.display = 'none';
             resultPanel.style.display = 'none';
             roleBadge.style.display = 'none';
+            isCurrentItemAppraised = false;
+            if (appraiseBtn) {
+                appraiseBtn.disabled = true;
+                appraiseBtn.style.display = 'none';
+            }
         }
 
         // ===================== BANKRUPTCY SYSTEM =====================
